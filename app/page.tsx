@@ -43,7 +43,9 @@ export default function Home() {
   const [profileUpdatedAt, setProfileUpdatedAt] = useState<string | undefined>()
 
   const fw = useCallback((url: string, init?: RequestInit) => {
-    const headers = { ...(init?.headers || {}), 'x-persona-id': personaId, 'Content-Type': 'application/json' }
+    // File uploads (FormData) need the browser to set the multipart Content-Type itself
+    const isForm = typeof FormData !== 'undefined' && init?.body instanceof FormData
+    const headers = { ...(init?.headers || {}), 'x-persona-id': personaId, ...(isForm ? {} : { 'Content-Type': 'application/json' }) }
     return fetch(url, { ...init, headers })
   }, [personaId])
 

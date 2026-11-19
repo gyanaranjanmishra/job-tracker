@@ -1,8 +1,9 @@
 import { load } from 'cheerio'
 import { v4 as uuidv4 } from 'uuid'
-import { readJobs, saveJob, readScraperConfig, writeScraperConfig } from './storage'
-import type { Job } from './storage'
+import { readJobs, readRoles, saveJob, readScraperConfig, writeScraperConfig, DEFAULT_ADZUNA } from './storage'
+import type { AdzunaSettings, Job } from './storage'
 import { cleanJobFields, dedupIncoming, validateJob } from './jobs'
+import { assignRole, matchesAnyTerm, searchTerms } from './roles'
 
 // ── Helpers ───────────────────────────────────────────
 
@@ -28,12 +29,6 @@ function stripHtml(html: string): string {
   return html.replace(/<[^>]+>/g, ' ').replace(/\s{2,}/g, ' ').trim()
 }
 
-function matchesKeywords(job: Job, keywords: string[]): boolean {
-  if (keywords.length === 0) return true
-  const text = `${job.title} ${job.description}`.toLowerCase()
-  return keywords.some(kw => kw.trim() && text.includes(kw.toLowerCase().trim()))
-}
-
 const HEADERS = { 'User-Agent': 'JobTracker/1.0 (personal job search tool)' }
 
 export interface SourceResult {
@@ -43,12 +38,15 @@ export interface SourceResult {
 }
 
 // ── Public API Sources ────────────────────────────────
+// Remotive, Arbeitnow and The Muse are fetched once without a search query and
+// filtered locally against every keyword: joining several role keywords into
+// one search string returns poor results. Adzuna is searched once per keyword.
 
-async function scrapeRemotive(keywords: string[]): Promise<{ jobs: Job[]; error?: string }> {
+type SourceFn = () => Promise<{ jobs: Job[]; error?: string }>
+
+async function scrapeRemotive(): Promise<{ jobs: Job[]; error?: string }> {
   try {
-    const query = keywords.join(' ')
-    const url = `https://remotive.com/api/remote-jobs${query ? `?search=${encodeURIComponent(query)}` : ''}`
-    const res = await fetch(url, { headers: HEADERS })
+    const res = await fetch('https://remotive.com/api/remote-jobs', { headers: HEADERS })
     if (!res.ok) return { jobs: [], error: `HTTP ${res.status}` }
     const data = await res.json() as { jobs?: any[] }
     const jobs = (data.jobs || []).map((j: any) => makeJob({
@@ -64,11 +62,9 @@ async function scrapeRemotive(keywords: string[]): Promise<{ jobs: Job[]; error?
   }
 }
 
-async function scrapeArbeitnow(keywords: string[]): Promise<{ jobs: Job[]; error?: string }> {
+async function scrapeArbeitnow(): Promise<{ jobs: Job[]; error?: string }> {
   try {
-    const query = keywords.join(' ')
-    const url = `https://www.arbeitnow.com/api/job-board-api${query ? `?search=${encodeURIComponent(query)}` : ''}`
-    const res = await fetch(url, { headers: HEADERS })
+    const res = await fetch('https://www.arbeitnow.com/api/job-board-api', { headers: HEADERS })
     if (!res.ok) return { jobs: [], error: `HTTP ${res.status}` }
     const data = await res.json() as { data?: any[] }
     const jobs = (data.data || []).map((j: any) => makeJob({
@@ -84,66 +80,58 @@ async function scrapeArbeitnow(keywords: string[]): Promise<{ jobs: Job[]; error
   }
 }
 
-async function scrapeTheMuse(keywords: string[]): Promise<{ jobs: Job[]; error?: string }> {
+async function scrapeTheMuse(): Promise<{ jobs: Job[]; error?: string }> {
   try {
-    const query = keywords[0] || ''
-    const url = `https://www.themuse.com/api/public/jobs?${query ? `category=${encodeURIComponent(query)}&` : ''}page=0&descending=true`
-    const res = await fetch(url, { headers: HEADERS })
-    if (!res.ok) return { jobs: [], error: `HTTP ${res.status}` }
-    const data = await res.json() as { results?: any[] }
-    const jobs = (data.results || []).map((j: any) => makeJob({
-      title: j.name,
-      company: j.company?.name || '',
-      location: (j.locations || []).map((l: any) => l.name).join(', '),
-      url: j.refs?.landing_page || '',
-      description: stripHtml(j.contents || ''),
-    }))
-    return { jobs }
+    const all: Job[] = []
+    for (const page of [0, 1]) {
+      const res = await fetch(`https://www.themuse.com/api/public/jobs?page=${page}&descending=true`, { headers: HEADERS })
+      if (!res.ok) return { jobs: all, error: `HTTP ${res.status}` }
+      const data = await res.json() as { results?: any[] }
+      all.push(...(data.results || []).map((j: any) => makeJob({
+        title: j.name,
+        company: j.company?.name || '',
+        location: (j.locations || []).map((l: any) => l.name).join(', '),
+        url: j.refs?.landing_page || '',
+        description: stripHtml(j.contents || ''),
+      })))
+    }
+    return { jobs: all }
   } catch (e: any) {
     return { jobs: [], error: e.message }
   }
 }
 
-async function scrapeAdzuna(keywords: string[]): Promise<{ jobs: Job[]; error?: string }> {
+/** One Adzuna search for one keyword, in the configured country and area. */
+async function scrapeAdzuna(keyword: string, area: AdzunaSettings): Promise<{ jobs: Job[]; error?: string }> {
   const appId = process.env.ADZUNA_APP_ID
   const appKey = process.env.ADZUNA_APP_KEY
-  if (!appId || !appKey) {
-    return { jobs: [], error: 'Missing ADZUNA_APP_ID or ADZUNA_APP_KEY in environment' }
-  }
-
-  const allJobs: Job[] = []
-  const errors: string[] = []
-
-  for (const keyword of keywords) {
-    try {
-      const url = [
-        `https://api.adzuna.com/v1/api/jobs/ca/search/1`,
-        `?app_id=${appId}&app_key=${appKey}`,
-        `&results_per_page=20`,
-        `&what=${encodeURIComponent(keyword)}`,
-        `&where=toronto&distance=50`,
-        `&content-type=application/json`,
-      ].join('')
-      const res = await fetch(url, { headers: HEADERS })
-      if (!res.ok) {
-        const body = await res.text().catch(() => '')
-        errors.push(`[${keyword}] HTTP ${res.status}${body ? ': ' + body.slice(0, 120) : ''}`)
-        continue
-      }
-      const data = await res.json() as { results?: any[] }
-      allJobs.push(...(data.results || []).map((j: any) => makeJob({
-        title: j.title,
-        company: j.company?.display_name || '',
-        location: j.location?.display_name || 'Toronto, ON',
-        url: j.redirect_url,
-        description: j.description || '',
-      })))
-    } catch (e: any) {
-      errors.push(`[${keyword}] ${e.message}`)
+  if (!appId || !appKey) return { jobs: [], error: 'Missing ADZUNA_APP_ID or ADZUNA_APP_KEY in environment' }
+  const country = (area.country || 'ca').toLowerCase().replace(/[^a-z]/g, '')
+  try {
+    const params = new URLSearchParams({
+      app_id: appId, app_key: appKey, results_per_page: '50', what_phrase: keyword, 'content-type': 'application/json',
+    })
+    if (area.where.trim()) {
+      params.set('where', area.where.trim())
+      params.set('distance', String(Math.max(1, Math.round(area.distance || 50))))
     }
+    const res = await fetch(`https://api.adzuna.com/v1/api/jobs/${country}/search/1?${params}`, { headers: HEADERS })
+    if (!res.ok) {
+      const body = await res.text().catch(() => '')
+      return { jobs: [], error: `[${keyword}] HTTP ${res.status}${body ? ': ' + body.slice(0, 120) : ''}` }
+    }
+    const data = await res.json() as { results?: any[] }
+    const jobs = (data.results || []).map((j: any) => makeJob({
+      title: j.title,
+      company: j.company?.display_name || '',
+      location: j.location?.display_name || area.where,
+      url: j.redirect_url,
+      description: stripHtml(j.description || ''),
+    }))
+    return { jobs }
+  } catch (e: any) {
+    return { jobs: [], error: `[${keyword}] ${e.message}` }
   }
-
-  return { jobs: allJobs, error: errors.length ? errors.join('; ') : undefined }
 }
 
 // ── Company Sources ───────────────────────────────────
@@ -215,28 +203,55 @@ async function scrapeDirectUrl(url: string, companyName: string): Promise<{ jobs
 
 // ── Main Runner ───────────────────────────────────────
 
-export async function runScraper(personaId: string): Promise<{ added: number; jobs: Job[]; sources: SourceResult[]; skippedInvalid?: number; skippedDuplicate?: number }> {
+// Jobs from sources that are not location-targeted are kept only for these
+// locations. Adzuna results are kept as-is: it searches the area you configure.
+const CANADA = /canada|ontario|toronto|vancouver|montreal|calgary|ottawa|winnipeg|edmonton|\bbc\b|alberta|nova scotia|new brunswick|saskatchewan|quebec|manitoba|hamilton/i
+const INDIA = /india|bengaluru|bangalore|mumbai|delhi|hyderabad|chennai|pune|noida|gurugram|gurgaon|kolkata|ahmedabad|jaipur|kochi/i
+const REMOTE = /remote|anywhere|worldwide|global|work from home|distributed/i
+
+export interface ScrapeResult {
+  added: number
+  jobs: Job[]
+  sources: SourceResult[]
+  skippedInvalid?: number
+  skippedDuplicate?: number
+  /** New jobs per role name ("Unassigned" when no role matched). */
+  byRole?: Record<string, number>
+}
+
+export async function runScraper(personaId: string): Promise<ScrapeResult> {
   const config = readScraperConfig(personaId)
-  if (!config.enabled) return { added: 0, jobs: [], sources: [] }
-  if (config.keywords.length === 0 && config.companies.length === 0) {
-    return { added: 0, jobs: [], sources: [{ source: 'config', fetched: 0, error: 'No keywords or companies configured' }] }
+  const roles = readRoles(personaId)
+  const terms = searchTerms(config.keywords, roles)
+  const companies = config.companies.filter(c => c.enabled)
+  if (terms.length === 0 && companies.length === 0) {
+    return { added: 0, jobs: [], sources: [{ source: 'config', fetched: 0, error: 'No keywords, role keywords or companies configured' }] }
   }
 
   const existing = readJobs(personaId)
-  const collected: Job[] = []
+  const collected: Array<{ job: Job; foundBy?: string; areaTargeted: boolean }> = []
   const sourceResults: SourceResult[] = []
 
-  async function run(name: string, fn: () => Promise<{ jobs: Job[]; error?: string }>) {
+  async function run(name: string, fn: SourceFn, opts: { foundBy?: string; areaTargeted?: boolean } = {}) {
     const { jobs, error } = await fn()
-    sourceResults.push({ source: name, fetched: jobs.length, error })
+    const entry = sourceResults.find(s => s.source === name)
+    if (entry) {
+      entry.fetched += jobs.length
+      if (error) entry.error = [entry.error, error].filter(Boolean).join('; ')
+    } else sourceResults.push({ source: name, fetched: jobs.length, error })
     if (error) console.error(`[Scraper] ${name}: ${error}`)
-    collected.push(...jobs)
+    for (const job of jobs) collected.push({ job, foundBy: opts.foundBy, areaTargeted: !!opts.areaTargeted })
   }
 
-  if (config.sources.remotive) await run('Remotive', () => scrapeRemotive(config.keywords))
-  if (config.sources.arbeitnow) await run('Arbeitnow', () => scrapeArbeitnow(config.keywords))
-  if (config.sources.themuse)   await run('TheMuse',   () => scrapeTheMuse(config.keywords))
-  if (config.sources.adzuna)    await run('Adzuna',    () => scrapeAdzuna(config.keywords))
+  if (terms.length) {
+    if (config.sources.remotive) await run('Remotive', scrapeRemotive)
+    if (config.sources.arbeitnow) await run('Arbeitnow', scrapeArbeitnow)
+    if (config.sources.themuse) await run('TheMuse', scrapeTheMuse)
+    if (config.sources.adzuna) {
+      const area = config.adzuna || DEFAULT_ADZUNA
+      for (const t of terms) await run('Adzuna', () => scrapeAdzuna(t.term, area), { foundBy: t.term, areaTargeted: true })
+    }
+  }
 
   for (const company of config.companies.filter(c => c.enabled)) {
     if (company.type === 'greenhouse') {
@@ -248,29 +263,35 @@ export async function runScraper(personaId: string): Promise<{ added: number; jo
     }
   }
 
-  // Filter to Canada / India / Remote only
-  const CANADA  = /canada|ontario|toronto|vancouver|montreal|calgary|ottawa|winnipeg|edmonton|\bbc\b|alberta|nova scotia|new brunswick|saskatchewan/i
-  const INDIA   = /india|bengaluru|bangalore|mumbai|delhi|hyderabad|chennai|pune|noida|gurugram|gurgaon|kolkata|ahmedabad|jaipur|kochi/i
-  const REMOTE  = /remote|anywhere|worldwide|global|work from home|distributed/i
-
-  const locationFiltered = collected.filter(j => {
-    const loc = j.location || ''
-    if (!loc) return true  // no location info — keep it
-    return CANADA.test(loc) || INDIA.test(loc) || REMOTE.test(loc)
+  const termList = terms.map(t => t.term)
+  const filtered = collected.filter(({ job, areaTargeted }) => {
+    const loc = job.location || ''
+    const locationOk = areaTargeted || !loc || CANADA.test(loc) || INDIA.test(loc) || REMOTE.test(loc)
+    return locationOk && matchesAnyTerm(job, termList)
   })
 
-  const filtered = config.keywords.length > 0
-    ? locationFiltered.filter(j => matchesKeywords(j, config.keywords))
-    : locationFiltered
+  // Tag each job with its role (and that role's region) so it is scored against the right resume
+  const tagged = filtered.map(({ job, foundBy }) => {
+    const roleId = assignRole(job, roles, foundBy)
+    const role = roles.find(r => r.id === roleId)
+    return { ...job, roleId, regionId: job.regionId || role?.regionId }
+  })
 
-  const valid = filtered.filter(j => validateJob(j).length === 0)
+  const valid = tagged.filter(j => validateJob(j).length === 0)
   const newJobs = dedupIncoming(valid, existing)
   for (const job of newJobs) saveJob(personaId, job)
+
+  const byRole: Record<string, number> = {}
+  for (const j of newJobs) {
+    const name = roles.find(r => r.id === j.roleId)?.name || 'Unassigned'
+    byRole[name] = (byRole[name] || 0) + 1
+  }
 
   writeScraperConfig(personaId, { ...config, lastRun: new Date().toISOString() })
   return {
     added: newJobs.length, jobs: newJobs, sources: sourceResults,
-    skippedInvalid: filtered.length - valid.length,
+    skippedInvalid: tagged.length - valid.length,
     skippedDuplicate: valid.length - newJobs.length,
+    byRole,
   }
 }

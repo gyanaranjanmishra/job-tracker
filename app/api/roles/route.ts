@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { readRoles, writeRoles, getDefaultPersonaId } from '@/lib/storage'
 import type { RoleConfig } from '@/lib/storage'
 import { v4 as uuidv4 } from 'uuid'
+import { parseTerms } from '@/lib/roles'
 
 function pid(req: NextRequest) {
   return req.headers.get('x-persona-id') || getDefaultPersonaId()
 }
+
+const cleanKeywords = (k: unknown): string[] => (Array.isArray(k) ? parseTerms(k.map(String).join(',')) : [])
 
 export async function GET(req: NextRequest) {
   return NextResponse.json(readRoles(pid(req)))
@@ -21,6 +24,7 @@ export async function POST(req: NextRequest) {
     name: body.name.trim(),
     resumeId: body.resumeId,
     regionId: body.regionId,
+    keywords: cleanKeywords(body.keywords),
   }
   roles.push(role)
   writeRoles(personaId, roles)
@@ -35,6 +39,7 @@ export async function PUT(req: NextRequest) {
   const idx = roles.findIndex(r => r.id === body.id)
   if (idx < 0) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   roles[idx] = { ...roles[idx], ...body }
+  if ('keywords' in body) roles[idx].keywords = cleanKeywords(body.keywords)
   writeRoles(personaId, roles)
   return NextResponse.json(roles[idx])
 }

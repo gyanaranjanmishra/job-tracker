@@ -13,7 +13,9 @@ A self-hosted job search tool built with Next.js and the Claude API. It pulls po
 | Area | What it does |
 |---|---|
 | **Pipeline** | Track jobs through Saved, Applied, Interview, Offer and Rejected, with per-job checklists, notes and region/role tags |
-| **Job scraping** | Pulls postings from Remotive, Arbeitnow, The Muse, Adzuna, and company Greenhouse/Lever boards or career pages |
+| **Job scraping** | Pulls postings from Adzuna (any supported country and area), Remotive, Arbeitnow, The Muse, and company Greenhouse/Lever boards or career pages |
+| **Roles with their own keywords** | Each role (say Data Analyst and Materials Engineer) has its own search keywords; every scraped job is tagged with the role it matches and scored against that role's resume |
+| **Resume upload** | Pick or drop a PDF, Word (.docx) or text file; the text is extracted locally for you to review before saving |
 | **Full descriptions** | Fetches the full posting from the job URL (with Greenhouse/Lever/generic parsers) when an API only returns a snippet |
 | **Rubric fit scoring** | Claude rates each job on five dimensions against your resume and preferences; the 0 to 100 score is computed in code from your weights |
 | **Two-stage analysis** | A cheap triage pass scores every job, then a deep pass on your K best adds matched and missing keywords, a rewritten summary and section suggestions |
@@ -32,6 +34,17 @@ Job boards often re-list the same posting under a new ID, with tracking paramete
 - **On manual add:** the API rejects a job that is already tracked (HTTP 409) and names the existing entry.
 - **Existing data:** when duplicates are present, a "Merge N duplicates" button appears in the pipeline. Merging keeps the most advanced record (furthest status, then analysed, then scored), fills gaps from the others (longest description, notes, checklist progress, earliest first-seen date), writes `jobs.backup-<timestamp>.json` first, and rebuilds the Learning Radar.
 - **Applied date:** set automatically the first time a job moves past "saved".
+- **Regional employers:** a trailing country is ignored when comparing companies, so "WSP Canada" and "WSP USA" posting the same Toronto job count as one (but "Bank of Canada" keeps its name).
+
+## Searching several kinds of role
+
+Roles live in the Sources tab. Give each role its search keywords (for example *Materials Engineer, Metallurgist, Metallurgical Engineer*) and a default resume. On **Scrape Now**:
+
+1. Adzuna is searched once per keyword in the country and area you set (city plus radius, or the whole country). Remotive, Arbeitnow and The Muse are fetched once and filtered locally against all keywords, since joining unrelated keywords into one search query returns poor results.
+2. Each new job is tagged with a role (`lib/roles.ts`): a role name or keyword in the title wins (longest match first), then the role whose keyword found the job, then the role mentioned most in the description.
+3. Triage and deep analysis use the role's default resume, so a metallurgy posting is never scored against a data science resume. The Learning Radar groups skill gaps by role.
+
+A "Tag N jobs" button in the Roles section applies the same rules to jobs you tracked before adding roles. It never changes a job that already has a role.
 
 | Dashboard | Learning Radar |
 |---|---|
@@ -83,8 +96,8 @@ cp .env.example .env.local
 
 Restart `npm run dev`. Your own data is stored in `data/`, which is gitignored and separate from the demo data. Then:
 
-1. **Resume** tab: paste your resume as plain text.
-2. **Sources** tab: set keywords and job sources, then click Scrape Now (or add jobs by hand with + Add Job).
+1. **Resume** tab: upload your resume (PDF, .docx or text) or paste it, and check the extracted text.
+2. **Sources** tab: add a role per kind of job with its keywords and resume, set the Adzuna area, then click Scrape Now (or add jobs by hand with + Add Job).
 3. **Resume** tab, Fit preferences: set your target seniority, locations, deal-breakers and weights.
 4. **Pipeline** tab: click Triage All to score jobs, then Run Full Analysis on the top K.
 5. **Learning** tab: see which skills come up most often as gaps.
@@ -109,6 +122,8 @@ app/
   api/
     jobs/                    CRUD for tracked jobs (validates and rejects duplicates)
     jobs/dedup/              Count (GET) or merge (POST) duplicates, with backup
+    jobs/assign-roles/       Count (GET) or tag (POST) untagged jobs with their best-matching role
+    resumes/parse/           Extract text from an uploaded PDF, .docx or text resume
     analyze/                 Rubric triage or deep analysis (mode: triage | deep)
     coverletter/             Draft, review and revise a cover letter
     profile/                 Fit preferences (GET/PUT)
@@ -126,6 +141,8 @@ lib/
   storage.ts                 JSON file storage, per persona, plus Learning Radar aggregation
   scraper.ts                 Job board and company-board scrapers
   jobs.ts                    Canonical job key, URL normalisation, field cleanup, duplicate merging (pure functions)
+  roles.ts                   Search terms per role and role assignment for jobs (pure functions)
+  resumeParse.ts             PDF (unpdf), .docx (mammoth) and text resume extraction
   ai.ts                      Claude client, structured-output helper, error mapping
   rubric.ts                  Rubric dimensions, schemas, weighted score, preferences
   analysis.ts                Triage and deep analysis
@@ -145,11 +162,11 @@ Storage is plain JSON files under `data/personas/<id>/` (jobs, resumes, regions,
 ## Tests
 
 ```bash
-npm test            # Vitest, about 60 tests in under a second
+npm test            # Vitest, about 75 tests in about a second
 npm run typecheck   # tsc --noEmit
 ```
 
-The tests cover the logic that is easy to get subtly wrong: canonical job keys, URL normalisation, duplicate grouping and merging (`tests/jobs.test.ts`), the weighted rubric score, deal-breaker cap and re-triage rule (`tests/rubric.test.ts`), the posting guard's character stripping, injection patterns and false positives on an ordinary posting (`tests/guard.test.ts`), and the triage, deep and cover-letter pipelines end to end with the demo backend (`tests/ai-pipeline.test.ts`). They run with `DEMO_MODE=true`, so no API key or network is needed. GitHub Actions runs the type-check, the tests and `next build` on every push and pull request.
+The tests cover the logic that is easy to get subtly wrong: canonical job keys, URL normalisation, duplicate grouping and merging (`tests/jobs.test.ts`), the weighted rubric score, deal-breaker cap and re-triage rule (`tests/rubric.test.ts`), the posting guard's character stripping, injection patterns and false positives on an ordinary posting (`tests/guard.test.ts`), role keyword search and role assignment (`tests/roles.test.ts`), resume extraction from PDF, .docx and text files built in memory during the test (`tests/resume-parse.test.ts`), and the triage, deep and cover-letter pipelines end to end with the demo backend (`tests/ai-pipeline.test.ts`). They run with `DEMO_MODE=true`, so no API key or network is needed. GitHub Actions runs the type-check, the tests and `next build` on every push and pull request.
 
 ## Why there is no hosted demo
 

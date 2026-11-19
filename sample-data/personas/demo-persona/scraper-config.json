@@ -1,12 +1,10 @@
 {
-  "keywords": [
-    "Data Scientist",
-    "Data Analyst"
-  ],
+  "keywords": [],
+  "adzuna": { "country": "ca", "where": "Toronto", "distance": 50 },
   "sources": {
     "remotive": true,
-    "arbeitnow": true,
-    "themuse": true,
+    "arbeitnow": false,
+    "themuse": false,
     "adzuna": false
   },
   "companies": [],

@@ -113,6 +113,8 @@ export interface RoleConfig {
   name: string
   resumeId?: string
   regionId?: string
+  /** Search terms for this role; scraped jobs they find are tagged with the role. */
+  keywords?: string[]
 }
 
 export interface LearningSkill {
@@ -147,8 +149,16 @@ export interface CompanyEntry {
   enabled: boolean
 }
 
+export interface AdzunaSettings {
+  country: string   // Adzuna country code, e.g. ca, gb, us, in
+  where: string     // city or area; empty = whole country
+  distance: number  // km around `where`
+}
+
 export interface ScraperConfig {
+  /** General keywords not tied to a role. */
   keywords: string[]
+  adzuna?: AdzunaSettings
   sources: { remotive: boolean; arbeitnow: boolean; themuse: boolean; adzuna: boolean }
   companies: CompanyEntry[]
   interval: 'hourly' | '6h' | 'daily' | 'weekly'
@@ -212,8 +222,11 @@ export function makeDefaultRegions(): RegionConfig[] {
   ]
 }
 
+export const DEFAULT_ADZUNA: AdzunaSettings = { country: 'ca', where: 'Toronto', distance: 50 }
+
 const DEFAULT_SCRAPER_CONFIG: ScraperConfig = {
   keywords: [],
+  adzuna: DEFAULT_ADZUNA,
   sources: { remotive: true, arbeitnow: false, themuse: false, adzuna: true },
   companies: [],
   interval: 'daily',
@@ -368,6 +381,12 @@ export function deleteResume(personaId: string, id: string): void {
 export function getBestResume(personaId: string, regionId?: string, roleId?: string): ResumeEntry | undefined {
   const resumes = readResumes(personaId)
   if (!resumes.length) return undefined
+  if (roleId) {
+    // The resume chosen as the role's default wins
+    const chosen = readRoles(personaId).find(r => r.id === roleId)?.resumeId
+    const byChoice = chosen ? resumes.find(r => r.id === chosen) : undefined
+    if (byChoice) return byChoice
+  }
   if (regionId && roleId) {
     const exact = resumes.find(r => r.regionId === regionId && r.roleId === roleId)
     if (exact) return exact
@@ -419,8 +438,10 @@ export function writeRoles(personaId: string, roles: RoleConfig[]): void {
 export function readScraperConfig(personaId: string): ScraperConfig {
   const file = path.join(personaDir(personaId), 'scraper-config.json')
   if (!fs.existsSync(file)) return { ...DEFAULT_SCRAPER_CONFIG }
-  try { return { ...DEFAULT_SCRAPER_CONFIG, ...JSON.parse(fs.readFileSync(file, 'utf-8')) } }
-  catch { return { ...DEFAULT_SCRAPER_CONFIG } }
+  try {
+    const saved = JSON.parse(fs.readFileSync(file, 'utf-8'))
+    return { ...DEFAULT_SCRAPER_CONFIG, ...saved, adzuna: { ...DEFAULT_ADZUNA, ...(saved.adzuna || {}) } }
+  } catch { return { ...DEFAULT_SCRAPER_CONFIG } }
 }
 
 export function writeScraperConfig(personaId: string, config: ScraperConfig): void {

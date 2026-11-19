@@ -15,7 +15,10 @@ export function SourcesTab({ fw, onJobsAdded, checklistTemplate, onChecklistTemp
   const [loading, setLoading] = useState(true)
   const [scraping, setScraping] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [scrapeResult, setScrapeResult] = useState<{ added: number; skippedDuplicate?: number; skippedInvalid?: number; sources?: { source: string; fetched: number; error?: string }[] } | null>(null)
+  const [scrapeResult, setScrapeResult] = useState<{ added: number; skippedDuplicate?: number; skippedInvalid?: number; byRole?: Record<string, number>; sources?: { source: string; fetched: number; error?: string }[] } | null>(null)
+  const [tagInfo, setTagInfo] = useState<{ untagged: number; assignable: number; byRole: Record<string, number> } | null>(null)
+  const [tagMessage, setTagMessage] = useState('')
+  const [editingKeywords, setEditingKeywords] = useState('')
   const [scrapeError, setScrapeError] = useState('')
   const [showAddCompany, setShowAddCompany] = useState(false)
   const [companyForm, setCompanyForm] = useState({ name: '', type: 'greenhouse' as CompanyEntry['type'], slug: '' })
@@ -25,7 +28,7 @@ export function SourcesTab({ fw, onJobsAdded, checklistTemplate, onChecklistTemp
   const [showAddRegion, setShowAddRegion] = useState(false)
   const [newRegionName, setNewRegionName] = useState('')
   const [showAddRole, setShowAddRole] = useState(false)
-  const [newRoleForm, setNewRoleForm] = useState({ name: '', regionId: '', resumeId: '' })
+  const [newRoleForm, setNewRoleForm] = useState({ name: '', regionId: '', resumeId: '', keywords: '' })
   const [editingRole, setEditingRole] = useState<RoleConfig | null>(null)
   const [newBoardForms, setNewBoardForms] = useState<Record<string, { name: string; url: string }>>({})
   const [newChecklistItem, setNewChecklistItem] = useState('')
@@ -38,7 +41,22 @@ export function SourcesTab({ fw, onJobsAdded, checklistTemplate, onChecklistTemp
     fw('/api/regions').then((r: Response) => r.json()).then(setRegions)
     fw('/api/roles').then((r: Response) => r.json()).then(setRoles)
     fw('/api/resumes').then((r: Response) => r.json()).then(setResumes)
+    loadTagInfo()
   }, [])
+
+  const loadTagInfo = () => fw('/api/jobs/assign-roles').then((r: Response) => r.json()).then(setTagInfo).catch(() => setTagInfo(null))
+
+  const tagExistingJobs = async () => {
+    const res = await fw('/api/jobs/assign-roles', { method: 'POST' })
+    const data = await res.json()
+    setTagMessage(`✓ Tagged ${data.assigned} job${data.assigned === 1 ? '' : 's'} with a role.`)
+    setTimeout(() => setTagMessage(''), 4000)
+    loadTagInfo(); onJobsAdded()
+  }
+
+  const splitTerms = (text: string) => text.split(/[,\n]/).map(k => k.trim()).filter(Boolean)
+  const area = config.adzuna || { country: 'ca', where: 'Toronto', distance: 50 }
+  const setArea = (patch: Partial<typeof area>) => setConfig(c => ({ ...c, adzuna: { ...area, ...patch } }))
 
   const saveConfig = async (updated: ScraperConfig) => {
     await fw('/api/scrape/config', { method: 'POST', body: JSON.stringify(updated) })
@@ -51,7 +69,7 @@ export function SourcesTab({ fw, onJobsAdded, checklistTemplate, onChecklistTemp
       const res = await fw('/api/scrape', { method: 'POST' })
       const data = await res.json()
       if (data.error) setScrapeError(data.error)
-      else { setScrapeResult(data); onJobsAdded(); fw('/api/scrape/config').then((r: Response) => r.json()).then(setConfig) }
+      else { setScrapeResult(data); onJobsAdded(); loadTagInfo(); fw('/api/scrape/config').then((r: Response) => r.json()).then(setConfig) }
     } catch { setScrapeError('Scrape failed.') }
     setScraping(false)
   }
@@ -95,14 +113,15 @@ export function SourcesTab({ fw, onJobsAdded, checklistTemplate, onChecklistTemp
 
   const addRole = async () => {
     if (!newRoleForm.name.trim()) return
-    const res = await fw('/api/roles', { method: 'POST', body: JSON.stringify(newRoleForm) })
+    const res = await fw('/api/roles', { method: 'POST', body: JSON.stringify({ ...newRoleForm, keywords: splitTerms(newRoleForm.keywords) }) })
     const role = await res.json()
-    setRoles(prev => [...prev, role]); setNewRoleForm({ name: '', regionId: '', resumeId: '' }); setShowAddRole(false); onRegionsRolesChange()
+    setRoles(prev => [...prev, role]); setNewRoleForm({ name: '', regionId: '', resumeId: '', keywords: '' }); setShowAddRole(false); onRegionsRolesChange(); loadTagInfo()
   }
 
   const saveRole = async (role: RoleConfig) => {
-    await fw('/api/roles', { method: 'PUT', body: JSON.stringify(role) })
-    setRoles(prev => prev.map(r => r.id === role.id ? role : r)); setEditingRole(null); onRegionsRolesChange()
+    const res = await fw('/api/roles', { method: 'PUT', body: JSON.stringify({ ...role, keywords: splitTerms(editingKeywords) }) })
+    const saved: RoleConfig = await res.json()
+    setRoles(prev => prev.map(r => r.id === saved.id ? saved : r)); setEditingRole(null); onRegionsRolesChange(); loadTagInfo()
   }
 
   const deleteRole = async (id: string) => {
@@ -142,6 +161,11 @@ export function SourcesTab({ fw, onJobsAdded, checklistTemplate, onChecklistTemp
                 {' '}Skipped {scrapeResult.skippedDuplicate || 0} already tracked and {scrapeResult.skippedInvalid || 0} with missing title or company.
               </span>
             ) : null}
+            {scrapeResult.byRole && Object.keys(scrapeResult.byRole).length > 0 && (
+              <div style={{ color: 'var(--text)', marginTop: 4 }}>
+                By role: {Object.entries(scrapeResult.byRole).map(([name, n]) => `${name} ${n}`).join(' · ')}
+              </div>
+            )}
           </div>
           {scrapeResult.sources && scrapeResult.sources.length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -161,16 +185,18 @@ export function SourcesTab({ fw, onJobsAdded, checklistTemplate, onChecklistTemp
         <div style={sectionLabel}>MANUAL SCRAPING</div>
         <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0 }}>
           Scraping runs on demand only. Click <strong>Scrape Now</strong> above whenever you want fresh results.
-          Jobs are filtered to Canada, India, and Remote locations. Duplicates across portals are automatically removed.
+          The scraper searches every role&apos;s keywords plus the general keywords below, and tags each new job with the role it matches,
+          so it is scored against that role&apos;s resume. Adzuna searches the area you set; other sources are filtered to Canada, India and Remote.
+          Duplicates across portals are removed automatically.
         </p>
       </div>
 
       {/* Keywords */}
       <div style={card}>
-        <div style={sectionLabel}>SEARCH KEYWORDS</div>
-        <label style={labelStyle}>Roles / skills (comma-separated)</label>
-        <input value={keywordsText} onChange={e => setKeywordsText(e.target.value)} placeholder="e.g. data analyst, python, business intelligence" style={inputStyle} />
-        <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>Jobs must contain at least one term. Leave empty to pull everything (not recommended).</p>
+        <div style={sectionLabel}>GENERAL KEYWORDS</div>
+        <label style={labelStyle}>Keywords not tied to a role (comma-separated)</label>
+        <input value={keywordsText} onChange={e => setKeywordsText(e.target.value)} placeholder="e.g. python, business intelligence" style={inputStyle} />
+        <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>Add search keywords to each role in the Roles section below. Jobs must contain at least one keyword.</p>
       </div>
 
       {/* API job boards */}
@@ -178,8 +204,8 @@ export function SourcesTab({ fw, onJobsAdded, checklistTemplate, onChecklistTemp
         <div style={sectionLabel}>API JOB SOURCES</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {([
-            { key: 'adzuna', label: 'Adzuna Canada', desc: 'Toronto-area jobs. Requires ADZUNA_APP_ID + ADZUNA_APP_KEY in .env.local' },
-            { key: 'remotive', label: 'Remotive', desc: 'Remote tech jobs globally. Free API.' },
+            { key: 'adzuna', label: 'Adzuna', desc: 'Broadest coverage, including engineering and trades. Searched once per keyword in the area below. Requires ADZUNA_APP_ID + ADZUNA_APP_KEY in .env.local' },
+            { key: 'remotive', label: 'Remotive', desc: 'Remote tech jobs only. Free API.' },
             { key: 'arbeitnow', label: 'Arbeitnow', desc: 'Mostly Europe-focused — disabled by default.' },
             { key: 'themuse', label: 'The Muse', desc: 'US-centric listings — disabled by default.' },
           ] as { key: keyof ScraperConfig['sources']; label: string; desc: string }[]).map(s => (
@@ -192,6 +218,19 @@ export function SourcesTab({ fw, onJobsAdded, checklistTemplate, onChecklistTemp
             </div>
           ))}
         </div>
+        {config.sources.adzuna && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', gap: 10, marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+            <div>
+              <label style={labelStyle}>Adzuna country</label>
+              <select value={area.country} onChange={e => setArea({ country: e.target.value })} style={selectStyle}>
+                {[['ca', 'Canada'], ['us', 'United States'], ['gb', 'United Kingdom'], ['in', 'India'], ['au', 'Australia'], ['de', 'Germany'], ['fr', 'France'], ['nl', 'Netherlands'], ['sg', 'Singapore']]
+                  .map(([code, name]) => <option key={code} value={code}>{name}</option>)}
+              </select>
+            </div>
+            <Field label="City or area (empty = whole country)" value={area.where} onChange={v => setArea({ where: v })} placeholder="Toronto" />
+            <Field label="Radius (km)" type="number" value={String(area.distance)} onChange={v => setArea({ distance: Number(v) || 0 })} placeholder="50" />
+          </div>
+        )}
       </div>
 
       {/* Regions & Boards */}
@@ -262,6 +301,9 @@ export function SourcesTab({ fw, onJobsAdded, checklistTemplate, onChecklistTemp
                 </select>
               </div>
             </div>
+            <div style={{ marginBottom: 10 }}>
+              <Field label="Search keywords (comma-separated)" value={newRoleForm.keywords} onChange={v => setNewRoleForm(f => ({ ...f, keywords: v }))} placeholder="Materials Engineer, Metallurgist, Metallurgical Engineer" />
+            </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={addRole} style={primaryBtn}>Add Role</button>
               <button onClick={() => setShowAddRole(false)} style={ghostBtn}>Cancel</button>
@@ -290,6 +332,9 @@ export function SourcesTab({ fw, onJobsAdded, checklistTemplate, onChecklistTemp
                       </select>
                     </div>
                   </div>
+                  <div style={{ marginBottom: 10 }}>
+                    <Field label="Search keywords (comma-separated)" value={editingKeywords} onChange={setEditingKeywords} placeholder="Materials Engineer, Metallurgist" />
+                  </div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={() => saveRole(editingRole)} style={primaryBtn}>Save</button>
                     <button onClick={() => setEditingRole(null)} style={ghostBtn}>Cancel</button>
@@ -303,8 +348,14 @@ export function SourcesTab({ fw, onJobsAdded, checklistTemplate, onChecklistTemp
                       {role.regionId ? `Region: ${regions.find(r => r.id === role.regionId)?.name}` : 'No region'}
                       {role.resumeId ? ` · Resume: ${resumes.find(r => r.id === role.resumeId)?.name}` : ' · Auto resume'}
                     </span>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+                      {(role.keywords || []).map(k => (
+                        <span key={k} style={{ fontSize: 11, fontFamily: 'DM Mono, monospace', background: '#eeedff', color: 'var(--accent)', border: '1px solid var(--accent)33', borderRadius: 4, padding: '1px 8px' }}>{k}</span>
+                      ))}
+                      {!(role.keywords || []).length && <span style={{ fontSize: 11, color: 'var(--muted)' }}>No search keywords: jobs are tagged by role name only</span>}
+                    </div>
                   </div>
-                  <button onClick={() => setEditingRole(role)} style={{ ...ghostBtn, fontSize: 12, padding: '4px 10px' }}>Edit</button>
+                  <button onClick={() => { setEditingRole(role); setEditingKeywords((role.keywords || []).join(', ')) }} style={{ ...ghostBtn, fontSize: 12, padding: '4px 10px' }}>Edit</button>
                   <button onClick={() => { if (confirm('Delete role?')) deleteRole(role.id) }} style={dangerBtn}>Delete</button>
                 </div>
               )}
@@ -312,6 +363,18 @@ export function SourcesTab({ fw, onJobsAdded, checklistTemplate, onChecklistTemp
           ))}
           {roles.length === 0 && <p style={{ color: 'var(--muted)', fontSize: 13 }}>No roles yet. Add roles to enable resume auto-selection and learning tracking.</p>}
         </div>
+        {tagInfo && tagInfo.untagged > 0 && roles.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
+            <div style={{ flex: 1, fontSize: 12, color: 'var(--muted)' }}>
+              {tagInfo.untagged} tracked job{tagInfo.untagged === 1 ? ' has' : 's have'} no role.{' '}
+              {tagInfo.assignable > 0
+                ? <>Keywords match {tagInfo.assignable}: {Object.entries(tagInfo.byRole).map(([n, c]) => `${n} ${c}`).join(' · ')}.</>
+                : 'None match a role name or keyword yet.'}
+            </div>
+            {tagMessage && <span style={{ fontSize: 12, color: 'var(--accent3)' }}>{tagMessage}</span>}
+            <button onClick={tagExistingJobs} disabled={!tagInfo.assignable} style={{ ...ghostBtn, fontSize: 12, padding: '5px 12px', opacity: tagInfo.assignable ? 1 : 0.5 }}>Tag {tagInfo.assignable} job{tagInfo.assignable === 1 ? '' : 's'}</button>
+          </div>
+        )}
       </div>
 
       {/* Company watchlist */}

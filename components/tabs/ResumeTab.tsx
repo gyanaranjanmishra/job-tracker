@@ -27,6 +27,27 @@ export function ResumeTab({ fw, personaId, regions, roles, onRegionsRolesChange,
     load()
   }
 
+  // Upload a resume file and fill the form with its text for review before saving
+  const [importing, setImporting] = useState(false)
+  const [importNote, setImportNote] = useState<{ error?: string; warnings?: string[]; source?: string } | null>(null)
+  const importFile = async (file: File | undefined, apply: (text: string, name: string) => void) => {
+    if (!file) return
+    setImporting(true); setImportNote(null)
+    try {
+      const body = new FormData()
+      body.append('file', file)
+      const res = await fw('/api/resumes/parse', { method: 'POST', body })
+      const data = await res.json()
+      if (!res.ok) setImportNote({ error: data.error || 'Could not read that file.' })
+      else {
+        apply(data.text, data.name)
+        const words = data.text.split(/\s+/).filter(Boolean).length
+        setImportNote({ warnings: data.warnings, source: `${file.name}: ${words} words${data.pages ? ` from ${data.pages} page${data.pages === 1 ? '' : 's'}` : ''}. Review the text, then save.` })
+      }
+    } catch { setImportNote({ error: 'Upload failed.' }) }
+    setImporting(false)
+  }
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
@@ -60,11 +81,13 @@ export function ResumeTab({ fw, personaId, regions, roles, onRegionsRolesChange,
               </select>
             </div>
           </div>
+          <ResumeFilePicker importing={importing} note={importNote}
+            onFile={f => importFile(f, (text, name) => setNewForm(prev => ({ ...prev, text, name: prev.name.trim() ? prev.name : name })))} />
           <label style={labelStyle}>Resume Text</label>
-          <textarea value={newForm.text} onChange={e => setNewForm(f => ({ ...f, text: e.target.value }))} rows={12} placeholder="Paste your full resume text here..." style={{ ...inputStyle, resize: 'vertical', fontFamily: 'DM Mono, monospace', fontSize: 13, lineHeight: 1.8, marginBottom: 12 }} />
+          <textarea value={newForm.text} onChange={e => setNewForm(f => ({ ...f, text: e.target.value }))} rows={12} placeholder="Choose a file above, or paste your full resume text here..." style={{ ...inputStyle, resize: 'vertical', fontFamily: 'DM Mono, monospace', fontSize: 13, lineHeight: 1.8, marginBottom: 12 }} />
           <div style={{ display: 'flex', gap: 10 }}>
-            <button onClick={() => { if (newForm.name.trim()) saveResume(newForm) }} style={primaryBtn}>Save Resume</button>
-            <button onClick={() => { setShowAdd(false); setNewForm({ name: '', regionId: '', roleId: '', text: '' }) }} style={ghostBtn}>Cancel</button>
+            <button onClick={() => { if (newForm.name.trim()) { saveResume(newForm); setImportNote(null) } }} disabled={!newForm.name.trim() || !newForm.text.trim()} style={{ ...primaryBtn, opacity: newForm.name.trim() && newForm.text.trim() ? 1 : 0.5 }}>Save Resume</button>
+            <button onClick={() => { setShowAdd(false); setImportNote(null); setNewForm({ name: '', regionId: '', roleId: '', text: '' }) }} style={ghostBtn}>Cancel</button>
           </div>
         </div>
       )}
@@ -92,6 +115,8 @@ export function ResumeTab({ fw, personaId, regions, roles, onRegionsRolesChange,
                       </select>
                     </div>
                   </div>
+                  <ResumeFilePicker importing={importing} note={importNote} label="Replace text from a file"
+                    onFile={f => importFile(f, text => setEditing(ed => ed ? { ...ed, text } : ed))} />
                   <textarea value={editing.text} onChange={e => setEditing(ed => ed ? { ...ed, text: e.target.value } : ed)} rows={14} style={{ ...inputStyle, resize: 'vertical', fontFamily: 'DM Mono, monospace', fontSize: 13, lineHeight: 1.8, marginBottom: 12 }} />
                   <div style={{ display: 'flex', gap: 10 }}>
                     <button onClick={() => saveResume(editing)} style={primaryBtn}>Save Changes</button>
@@ -121,6 +146,37 @@ export function ResumeTab({ fw, personaId, regions, roles, onRegionsRolesChange,
       )}
 
       <FitPreferences fw={fw} personaId={personaId} onSaved={onProfileChange} />
+    </div>
+  )
+}
+
+// ── Resume file picker ────────────────────────────────
+export function ResumeFilePicker({ onFile, importing, note, label = 'Choose a resume file' }: {
+  onFile: (f: File | undefined) => void
+  importing: boolean
+  note: { error?: string; warnings?: string[]; source?: string } | null
+  label?: string
+}) {
+  const [dragging, setDragging] = useState(false)
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <label
+        onDragOver={e => { e.preventDefault(); setDragging(true) }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={e => { e.preventDefault(); setDragging(false); onFile(e.dataTransfer.files?.[0]) }}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 12, cursor: importing ? 'wait' : 'pointer',
+          border: `1px dashed ${dragging ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 8, padding: '10px 14px',
+          background: dragging ? '#eeedff' : 'var(--surface2)',
+        }}>
+        <input type="file" accept=".pdf,.docx,.txt,.md" style={{ display: 'none' }} disabled={importing}
+          onChange={e => { onFile(e.target.files?.[0]); e.target.value = '' }} />
+        <span style={{ ...ghostBtn, fontSize: 12, padding: '5px 12px', pointerEvents: 'none', whiteSpace: 'nowrap' }}>{importing ? 'Reading…' : `📎 ${label}`}</span>
+        <span style={{ fontSize: 12, color: 'var(--muted)' }}>PDF, Word (.docx) or text, up to 5 MB. Or drop a file here. The text is extracted on your machine.</span>
+      </label>
+      {note?.error && <div style={{ fontSize: 12, color: 'var(--danger)', marginTop: 6 }}>{note.error}</div>}
+      {note?.source && <div style={{ fontSize: 12, color: 'var(--accent3)', marginTop: 6 }}>✓ {note.source}</div>}
+      {note?.warnings?.map((w, i) => <div key={i} style={{ fontSize: 12, color: '#a06000', marginTop: 4 }}>⚠ {w}</div>)}
     </div>
   )
 }

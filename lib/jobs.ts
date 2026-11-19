@@ -16,8 +16,15 @@ function norm(s: string): string {
     .trim()
 }
 
+// Regional arms of one employer often post the same job ("WSP", "WSP Canada", "WSP USA")
+// but "Bank of Canada" names an organisation, so keep a country that follows of/and/the/for.
+const COUNTRY_SUFFIX = /\s(canada|usa|us|united states|uk|united kingdom|india|north america)$/
+const PART_OF_NAME = /\b(of|and|the|for)\s(canada|usa|us|united states|uk|united kingdom|india|north america)$/
+
 export function normalizeCompany(company: string): string {
-  return norm(company).replace(LEGAL_SUFFIXES, ' ').replace(/\s+/g, ' ').trim()
+  const base = norm(company).replace(LEGAL_SUFFIXES, ' ').replace(/\s+/g, ' ').trim()
+  if (PART_OF_NAME.test(base)) return base
+  return base.replace(COUNTRY_SUFFIX, '').trim() || base
 }
 
 export function normalizeTitle(title: string): string {

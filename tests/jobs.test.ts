@@ -13,6 +13,16 @@ describe('normalisation', () => {
     expect(normalizeCompany('Procter & Gamble Co.')).toBe('procter and gamble')
   })
 
+  it('treats regional arms of one employer as the same company', () => {
+    expect(normalizeCompany('WSP Canada')).toBe('wsp')
+    expect(normalizeCompany('WSP USA Inc.')).toBe('wsp')
+    expect(jobKey('Senior Metallurgist', 'WSP Canada')).toBe(jobKey('Senior Metallurgist', 'WSP USA'))
+    // A name that is only a country stays as it is
+    expect(normalizeCompany('Canada')).toBe('canada')
+    // Countries elsewhere in the name are kept
+    expect(normalizeCompany('Bank of Canada')).toBe('bank of canada')
+  })
+
   it('drops gender tags from titles', () => {
     expect(normalizeTitle('Data Scientist (m/f/d)')).toBe('data scientist')
     expect(normalizeTitle('Data Scientist (f/x/m)')).toBe('data scientist')

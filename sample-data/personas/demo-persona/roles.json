@@ -3,12 +3,14 @@
     "id": "role-ds",
     "name": "Data Scientist",
     "resumeId": "resume-ds",
-    "regionId": "region-canada"
+    "regionId": "region-canada",
+    "keywords": ["Data Scientist", "Machine Learning Scientist", "Applied Scientist"]
   },
   {
     "id": "role-da",
     "name": "Data Analyst",
     "resumeId": "resume-da",
-    "regionId": "region-canada"
+    "regionId": "region-canada",
+    "keywords": ["Data Analyst", "Business Intelligence Analyst", "Analytics Engineer"]
   }
 ]
