@@ -1,6 +1,6 @@
 # JobTracker: local-first job search dashboard with AI resume matching
 
-[![CI](https://github.com/gyanaranjanmishra/job-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/gyanaranjanmishra/job-tracker/actions/workflows/ci.yml)
+[![CI](https://github.com/gyanaranjanmishra/job-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/gyanaranjanmishra/job-tracker/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 A self-hosted job search tool built with Next.js and the Claude API. It pulls postings from public job boards, scores each one against your resume, shows which skills you keep missing, and drafts tailored cover letters. Everything is stored as JSON on your own machine, with no cloud database.
 
@@ -203,3 +203,7 @@ The app writes to JSON files on local disk and has no authentication, so it is b
 ## Privacy
 
 Your resume and job data never leave your machine except in the requests sent to the Claude API for analysis. `data/`, `.demo-data/` and `.env.local` are all gitignored.
+
+## License
+
+[MIT](LICENSE). You are free to use, change and share this code, including commercially, as long as the copyright notice stays with it. Anyone running it uses their own Anthropic API key and pays for their own Claude calls.
