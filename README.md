@@ -1,5 +1,7 @@
 # JobTracker: local-first job search dashboard with AI resume matching
 
+[![CI](https://github.com/gyanaranjanmishra/job-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/gyanaranjanmishra/job-tracker/actions/workflows/ci.yml)
+
 A self-hosted job search tool built with Next.js and the Claude API. It pulls postings from public job boards, scores each one against your resume, shows which skills you keep missing, and drafts tailored cover letters. Everything is stored as JSON on your own machine, with no cloud database.
 
 **Runs without an API key.** With no key set, the app starts in demo mode with sample data and a local keyword matcher, so you can try every screen for free.
@@ -103,7 +105,7 @@ Demo mode is on when `ANTHROPIC_API_KEY` is empty, or when `DEMO_MODE=true`.
 
 ```
 app/
-  page.tsx                   Single-page UI (pipeline, dashboard, ATS, cover letter, resume, learning, sources)
+  page.tsx                   App shell: state, data loading, tab routing, pipeline view
   api/
     jobs/                    CRUD for tracked jobs (validates and rejects duplicates)
     jobs/dedup/              Count (GET) or merge (POST) duplicates, with backup
@@ -115,6 +117,11 @@ app/
     export/pdf/              Build a PDF report for one job (pdfkit)
     resume/, resumes/        Resume storage
     personas/, regions/, roles/
+components/
+  ui.tsx                     Shared styles and small widgets (Field, ScoreBadge, KeywordBox, ...)
+  Sidebar.tsx, PersonaDropdown.tsx, FitBreakdown.tsx
+  pipeline/                  JobCard, AddJobForm
+  tabs/                      Dashboard, ATS, Cover Letter, Resume (+ Fit preferences), Learning, Sources
 lib/
   storage.ts                 JSON file storage, per persona, plus Learning Radar aggregation
   scraper.ts                 Job board and company-board scrapers
@@ -126,12 +133,23 @@ lib/
   guard.ts                   Posting guard (invisible characters, injection patterns, hidden HTML)
   demo.ts                    Demo-mode switch, mock analyzer and cover letter template
 sample-data/                 Fictional data used in demo mode
+tests/                       Vitest unit tests (run in demo mode, no network)
+.github/workflows/ci.yml     Type-check, tests and production build on every push
 scripts/                     Optional Windows/WSL auto-start with PM2
 ```
 
 Storage is plain JSON files under `data/personas/<id>/` (jobs, resumes, regions, roles, learning, scraper config). There is no database or auth, because the app is meant to run locally for one person.
 
 **Stack:** Next.js 14 (App Router), React 18, TypeScript, Tailwind, Anthropic SDK with Zod structured outputs, cheerio, pdfkit.
+
+## Tests
+
+```bash
+npm test            # Vitest, about 60 tests in under a second
+npm run typecheck   # tsc --noEmit
+```
+
+The tests cover the logic that is easy to get subtly wrong: canonical job keys, URL normalisation, duplicate grouping and merging (`tests/jobs.test.ts`), the weighted rubric score, deal-breaker cap and re-triage rule (`tests/rubric.test.ts`), the posting guard's character stripping, injection patterns and false positives on an ordinary posting (`tests/guard.test.ts`), and the triage, deep and cover-letter pipelines end to end with the demo backend (`tests/ai-pipeline.test.ts`). They run with `DEMO_MODE=true`, so no API key or network is needed. GitHub Actions runs the type-check, the tests and `next build` on every push and pull request.
 
 ## Why there is no hosted demo
 
@@ -147,8 +165,8 @@ The app writes to JSON files on local disk and has no authentication, so it is b
 - ~~Structured multi-criteria fit rubric with preferences and deal-breakers~~ (done)
 - ~~Drafter and reviewer passes for cover letters~~ (done)
 - ~~Guard against hidden text and prompt injection in scraped postings~~ (done)
-- Unit tests and CI
-- Split `page.tsx` into components
+- ~~Unit tests and CI~~ (done)
+- ~~Split `page.tsx` into components~~ (done)
 
 ## Privacy
 
