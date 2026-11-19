@@ -4,6 +4,9 @@ import type { ResumeEntry, RegionConfig, RoleConfig } from '@/lib/storage'
 import { DIMENSIONS, DIMENSION_LABELS, DEAL_BREAKER_CAP, type FitProfile } from '@/lib/rubric'
 import { labelStyle, inputStyle, selectStyle, primaryBtn, ghostBtn, dangerBtn, card, Field, EmptyState } from '@/components/ui'
 
+// Same list as RESUME_EXTENSIONS in lib/resumeParse.ts (not imported: that module is server-only)
+const RESUME_ACCEPT = '.pdf,.docx,.txt,.md'
+
 // ── Resume Tab ────────────────────────────────────────
 export function ResumeTab({ fw, personaId, regions, roles, onRegionsRolesChange, onProfileChange }: { fw: Function; personaId: string; regions: RegionConfig[]; roles: RoleConfig[]; onRegionsRolesChange: () => void; onProfileChange?: (updatedAt?: string) => void }) {
   const [resumes, setResumes] = useState<ResumeEntry[]>([])
@@ -57,7 +60,20 @@ export function ResumeTab({ fw, personaId, regions, roles, onRegionsRolesChange,
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {saved && <span style={{ fontSize: 13, color: 'var(--accent3)' }}>✓ Saved</span>}
-          <button onClick={() => setShowAdd(v => !v)} style={primaryBtn}>{showAdd ? 'Cancel' : '+ Add Resume'}</button>
+          {/* Upload straight from the header: opens the New Resume form filled with the extracted text */}
+          <label title="PDF, Word (.docx) or text file, up to 5 MB" style={{ ...ghostBtn, display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', cursor: importing ? 'wait' : 'pointer', opacity: importing ? 0.6 : 1 }}>
+            {importing ? 'Reading file…' : '⇪ Upload resume file'}
+            <input type="file" accept={RESUME_ACCEPT} style={{ display: 'none' }} disabled={importing}
+              onChange={e => {
+                const file = e.target.files?.[0]
+                e.target.value = ''
+                if (!file) return
+                setEditing(null)
+                setShowAdd(true)
+                importFile(file, (text, name) => setNewForm(prev => ({ ...prev, text, name: prev.name.trim() ? prev.name : name })))
+              }} />
+          </label>
+          <button onClick={() => setShowAdd(v => !v)} style={{ ...primaryBtn, whiteSpace: 'nowrap' }}>{showAdd ? 'Cancel' : '+ Add Resume'}</button>
         </div>
       </div>
 
@@ -169,7 +185,7 @@ export function ResumeFilePicker({ onFile, importing, note, label = 'Choose a re
           border: `1px dashed ${dragging ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 8, padding: '10px 14px',
           background: dragging ? '#eeedff' : 'var(--surface2)',
         }}>
-        <input type="file" accept=".pdf,.docx,.txt,.md" style={{ display: 'none' }} disabled={importing}
+        <input type="file" accept={RESUME_ACCEPT} style={{ display: 'none' }} disabled={importing}
           onChange={e => { onFile(e.target.files?.[0]); e.target.value = '' }} />
         <span style={{ ...ghostBtn, fontSize: 12, padding: '5px 12px', pointerEvents: 'none', whiteSpace: 'nowrap' }}>{importing ? 'Reading…' : `📎 ${label}`}</span>
         <span style={{ fontSize: 12, color: 'var(--muted)' }}>PDF, Word (.docx) or text, up to 5 MB. Or drop a file here. The text is extracted on your machine.</span>
