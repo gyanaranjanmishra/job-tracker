@@ -19,6 +19,16 @@ A self-hosted job search tool built with Next.js and the Claude API. It pulls po
 | **Learning Radar** | Aggregates missing skills across every analyzed job, per role, so you can see which gaps matter most |
 | **Cover letters** | Generates a tailored three-paragraph cover letter from your resume and the posting |
 | **Multiple resumes and personas** | Keep separate resumes per role/region and switch between profiles |
+| **Duplicate protection** | Recognises the same posting across re-listings and sources, and merges existing duplicates with a backup |
+
+## Data quality
+
+Job boards often re-list the same posting under a new ID, with tracking parameters in the URL, so matching on URL alone lets duplicates through. `lib/jobs.ts` gives every posting a **canonical key**: normalised company (accents, punctuation and legal suffixes such as Inc/Ltd/GmbH removed) plus normalised title (gender tags such as "(m/f/d)" removed). URLs are compared after stripping `utm_*` and similar tracking parameters.
+
+- **On scrape:** jobs with a missing title or company are dropped, fields are cleaned (HTML entities, stray labels such as "Description Chubb" become "Chubb"), and anything matching an existing key or URL is skipped. The result shows how many were skipped and why.
+- **On manual add:** the API rejects a job that is already tracked (HTTP 409) and names the existing entry.
+- **Existing data:** when duplicates are present, a "Merge N duplicates" button appears in the pipeline. Merging keeps the most advanced record (furthest status, then analysed, then scored), fills gaps from the others (longest description, notes, checklist progress, earliest first-seen date), writes `jobs.backup-<timestamp>.json` first, and rebuilds the Learning Radar.
+- **Applied date:** set automatically the first time a job moves past "saved".
 
 | Dashboard | Learning Radar |
 |---|---|
@@ -69,7 +79,8 @@ Demo mode is on when `ANTHROPIC_API_KEY` is empty, or when `DEMO_MODE=true`.
 app/
   page.tsx                   Single-page UI (pipeline, dashboard, ATS, cover letter, resume, learning, sources)
   api/
-    jobs/                    CRUD for tracked jobs
+    jobs/                    CRUD for tracked jobs (validates and rejects duplicates)
+    jobs/dedup/              Count (GET) or merge (POST) duplicates, with backup
     analyze/                 ATS scoring via Claude (or the demo matcher)
     coverletter/             Cover letter generation via Claude (or the demo template)
     scrape/, scrape/config/  Run scrapers, read/write scraper settings
@@ -80,6 +91,7 @@ app/
 lib/
   storage.ts                 JSON file storage, per persona, plus Learning Radar aggregation
   scraper.ts                 Job board and company-board scrapers
+  jobs.ts                    Canonical job key, URL normalisation, field cleanup, duplicate merging (pure functions)
   demo.ts                    Demo-mode switch, mock analyzer and cover letter template
 sample-data/                 Fictional data used in demo mode
 scripts/                     Optional Windows/WSL auto-start with PM2
@@ -99,7 +111,7 @@ The app writes to JSON files on local disk and has no authentication, so it is b
 
 ## Roadmap
 
-- Canonical-key deduplication of scraped postings, and field validation
+- ~~Canonical-key deduplication of scraped postings, and field validation~~ (done)
 - Structured multi-criteria fit rubric (skills, seniority, location, deal-breakers)
 - Drafter and reviewer passes for cover letters
 - Guard against hidden text and prompt injection in scraped postings

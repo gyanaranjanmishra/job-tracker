@@ -192,6 +192,7 @@ export default function Home() {
   const [filterRegionId, setFilterRegionId] = useState('')
   const [filterRoleId, setFilterRoleId] = useState('')
   const [demoMode, setDemoMode] = useState(false)
+  const [dupCount, setDupCount] = useState(0)
 
   const fw = useCallback((url: string, init?: RequestInit) => {
     const headers = { ...(init?.headers || {}), 'x-persona-id': personaId, 'Content-Type': 'application/json' }
@@ -200,9 +201,24 @@ export default function Home() {
 
   const fetchJobs = useCallback(async () => {
     if (!personaId) return
-    const res = await fw('/api/jobs')
+    const [res, dupRes] = await Promise.all([fw('/api/jobs'), fw('/api/jobs/dedup')])
     setJobs(await res.json())
+    setDupCount((await dupRes.json()).duplicates || 0)
   }, [personaId, fw])
+
+  const mergeDuplicates = async () => {
+    if (!confirm(`Merge ${dupCount} duplicate job(s)? A backup of your jobs is saved first.`)) return
+    const res = await fw('/api/jobs/dedup', { method: 'POST' })
+    const r = await res.json()
+    alert(`Merged ${r.removed} duplicate(s) into ${r.groups} job(s)` + (r.fieldsFixed ? `, cleaned ${r.fieldsFixed} field(s)` : '') + `.\nBackup: ${r.backup}`)
+    fetchJobs()
+  }
+
+  const addJob = async (data: any) => {
+    const res = await fw('/api/jobs', { method: 'POST', body: JSON.stringify(data) })
+    if (!res.ok) { alert((await res.json()).error || 'Could not add job'); return }
+    setShowAddForm(false); fetchJobs()
+  }
 
   const fetchRegionsRoles = useCallback(async () => {
     if (!personaId) return
@@ -411,6 +427,11 @@ export default function Home() {
                 <button onClick={analyzeAll} disabled={analyzing || !jobs.filter(j => j.description && !j.fitScore).length} style={{ ...ghostBtn, color: 'var(--accent2)', borderColor: 'var(--accent2)', opacity: analyzing || !jobs.filter(j => j.description && !j.fitScore).length ? 0.5 : 1 }}>
                   {analyzing ? `Analyzing ${analyzeProgress}/${analyzeTotal}…` : `🎯 Analyze All (${jobs.filter(j => j.description && !j.fitScore).length})`}
                 </button>
+                {dupCount > 0 && (
+                  <button onClick={mergeDuplicates} title="Same company and title, or same link" style={{ ...ghostBtn, color: 'var(--danger)', borderColor: 'var(--danger)' }}>
+                    Merge {dupCount} duplicate{dupCount === 1 ? '' : 's'}
+                  </button>
+                )}
                 <button onClick={() => setShowAddForm(true)} style={primaryBtn}>+ Add Job</button>
               </div>
             </div>
@@ -430,7 +451,7 @@ export default function Home() {
 
             {showAddForm && (
               <AddJobForm regions={regions} roles={roles}
-                onSave={async data => { await fw('/api/jobs', { method: 'POST', body: JSON.stringify(data) }); setShowAddForm(false); fetchJobs() }}
+                onSave={addJob}
                 onCancel={() => setShowAddForm(false)} />
             )}
 
@@ -1303,7 +1324,7 @@ function LearningTab({ fw, roles }: { fw: Function; roles: RoleConfig[] }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           {missing.length > 0 && (
             <div style={card}>
-              <div style={{ ...sectionLabel, color: 'var(--danger)' }}>🎯 SKILLS TO DEVELOP — {missing.length} gaps found across {data.skills.reduce((a: number, b: any) => a + b.jobIds.length, 0)} job descriptions</div>
+              <div style={{ ...sectionLabel, color: 'var(--danger)' }}>🎯 SKILLS TO DEVELOP — {missing.length} gaps found across {new Set(data.skills.flatMap((s: any) => s.jobIds)).size} job descriptions</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {missing.map((s: any) => (
                   <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff0ec', border: '1px solid #c8301022', borderRadius: 8, padding: '6px 12px' }}>
@@ -1355,7 +1376,7 @@ function SourcesTab({ fw, onJobsAdded, checklistTemplate, onChecklistTemplateUpd
   const [loading, setLoading] = useState(true)
   const [scraping, setScraping] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [scrapeResult, setScrapeResult] = useState<{ added: number; sources?: { source: string; fetched: number; error?: string }[] } | null>(null)
+  const [scrapeResult, setScrapeResult] = useState<{ added: number; skippedDuplicate?: number; skippedInvalid?: number; sources?: { source: string; fetched: number; error?: string }[] } | null>(null)
   const [scrapeError, setScrapeError] = useState('')
   const [showAddCompany, setShowAddCompany] = useState(false)
   const [companyForm, setCompanyForm] = useState({ name: '', type: 'greenhouse' as CompanyEntry['type'], slug: '' })
@@ -1476,7 +1497,12 @@ function SourcesTab({ fw, onJobsAdded, checklistTemplate, onChecklistTemplateUpd
       {scrapeResult && (
         <div style={{ background: '#e6f7f0', border: '1px solid #0a7a5044', borderRadius: 10, padding: '12px 18px' }}>
           <div style={{ fontSize: 13, color: 'var(--accent3)', marginBottom: scrapeResult.sources?.length ? 10 : 0 }}>
-            {scrapeResult.added > 0 ? `✓ Added ${scrapeResult.added} new job${scrapeResult.added === 1 ? '' : 's'} to your pipeline.` : '✓ Scrape complete — no new jobs found.'}
+            {scrapeResult.added > 0 ? `✓ Added ${scrapeResult.added} new job${scrapeResult.added === 1 ? '' : 's'} to your pipeline.` : '✓ Scrape complete: no new jobs found.'}
+            {(scrapeResult.skippedDuplicate || scrapeResult.skippedInvalid) ? (
+              <span style={{ color: 'var(--muted)' }}>
+                {' '}Skipped {scrapeResult.skippedDuplicate || 0} already tracked and {scrapeResult.skippedInvalid || 0} with missing title or company.
+              </span>
+            ) : null}
           </div>
           {scrapeResult.sources && scrapeResult.sources.length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>

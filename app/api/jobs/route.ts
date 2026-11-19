@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { readJobs, saveJob, deleteJob, getDefaultPersonaId, readSettings } from '@/lib/storage'
 import type { Job } from '@/lib/storage'
 import { v4 as uuidv4 } from 'uuid'
+import { cleanJobFields, findDuplicate, validateJob } from '@/lib/jobs'
+
+const today = () => new Date().toISOString().slice(0, 10)
 
 function pid(req: NextRequest) {
   return req.headers.get('x-persona-id') || getDefaultPersonaId()
@@ -13,10 +16,22 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const personaId = pid(req)
-  const body = await req.json()
+  const body = cleanJobFields(await req.json())
   const settings = readSettings()
   const checklistTemplate = settings.checklistTemplate || []
 
+  const errors = validateJob(body)
+  if (errors.length) return NextResponse.json({ error: `Invalid job: ${errors.join(', ')}` }, { status: 400 })
+
+  const duplicate = findDuplicate({ title: body.title!, company: body.company!, url: body.url || '' }, readJobs(personaId))
+  if (duplicate) {
+    return NextResponse.json(
+      { error: `Already tracked: "${duplicate.title}" at ${duplicate.company} (status: ${duplicate.status})`, duplicateId: duplicate.id },
+      { status: 409 },
+    )
+  }
+
+  const status = body.status || 'saved'
   const job: Job = {
     id: uuidv4(),
     title: body.title || '',
@@ -24,9 +39,9 @@ export async function POST(req: NextRequest) {
     location: body.location || '',
     url: body.url || '',
     description: body.description || '',
-    status: body.status || 'saved',
+    status,
     notes: body.notes || '',
-    appliedDate: body.appliedDate || '',
+    appliedDate: body.appliedDate || (status !== 'saved' ? today() : ''),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     regionId: body.regionId,
@@ -43,6 +58,10 @@ export async function PUT(req: NextRequest) {
   const existing = readJobs(personaId).find(j => j.id === body.id)
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   const updated: Job = { ...existing, ...body, updatedAt: new Date().toISOString() }
+  // Record when a job first leaves "saved", so the pipeline has real application dates
+  if (existing.status === 'saved' && updated.status !== 'saved' && !updated.appliedDate) {
+    updated.appliedDate = today()
+  }
   saveJob(personaId, updated)
   return NextResponse.json(updated)
 }

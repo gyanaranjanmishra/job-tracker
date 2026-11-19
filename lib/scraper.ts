@@ -2,15 +2,17 @@ import { load } from 'cheerio'
 import { v4 as uuidv4 } from 'uuid'
 import { readJobs, saveJob, readScraperConfig, writeScraperConfig } from './storage'
 import type { Job } from './storage'
+import { cleanJobFields, dedupIncoming, validateJob } from './jobs'
 
 // ── Helpers ───────────────────────────────────────────
 
-function makeJob(partial: Partial<Job>): Job {
+function makeJob(raw: Partial<Job>): Job {
   const now = new Date().toISOString()
+  const partial = cleanJobFields(raw)
   return {
     id: uuidv4(),
-    title: partial.title || 'Unknown Title',
-    company: partial.company || 'Unknown Company',
+    title: partial.title || '',
+    company: partial.company || '',
     location: partial.location || '',
     url: partial.url || '',
     description: partial.description || '',
@@ -24,27 +26,6 @@ function makeJob(partial: Partial<Job>): Job {
 
 function stripHtml(html: string): string {
   return html.replace(/<[^>]+>/g, ' ').replace(/\s{2,}/g, ' ').trim()
-}
-
-function normalizeKey(title: string, company: string): string {
-  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim()
-  return `${norm(title)}|${norm(company)}`
-}
-
-function dedup(incoming: Job[], existing: Job[]): Job[] {
-  const existingUrls = new Set(existing.map(j => j.url).filter(Boolean))
-  const existingKeys = new Set(existing.map(j => normalizeKey(j.title, j.company)))
-
-  const result: Job[] = []
-  for (const j of incoming) {
-    const key = normalizeKey(j.title, j.company)
-    if (j.url && existingUrls.has(j.url)) continue
-    if (existingKeys.has(key)) continue
-    existingKeys.add(key)
-    if (j.url) existingUrls.add(j.url)
-    result.push(j)
-  }
-  return result
 }
 
 function matchesKeywords(job: Job, keywords: string[]): boolean {
@@ -234,7 +215,7 @@ async function scrapeDirectUrl(url: string, companyName: string): Promise<{ jobs
 
 // ── Main Runner ───────────────────────────────────────
 
-export async function runScraper(personaId: string): Promise<{ added: number; jobs: Job[]; sources: SourceResult[] }> {
+export async function runScraper(personaId: string): Promise<{ added: number; jobs: Job[]; sources: SourceResult[]; skippedInvalid?: number; skippedDuplicate?: number }> {
   const config = readScraperConfig(personaId)
   if (!config.enabled) return { added: 0, jobs: [], sources: [] }
   if (config.keywords.length === 0 && config.companies.length === 0) {
@@ -282,9 +263,14 @@ export async function runScraper(personaId: string): Promise<{ added: number; jo
     ? locationFiltered.filter(j => matchesKeywords(j, config.keywords))
     : locationFiltered
 
-  const newJobs = dedup(filtered, existing)
+  const valid = filtered.filter(j => validateJob(j).length === 0)
+  const newJobs = dedupIncoming(valid, existing)
   for (const job of newJobs) saveJob(personaId, job)
 
   writeScraperConfig(personaId, { ...config, lastRun: new Date().toISOString() })
-  return { added: newJobs.length, jobs: newJobs, sources: sourceResults }
+  return {
+    added: newJobs.length, jobs: newJobs, sources: sourceResults,
+    skippedInvalid: filtered.length - valid.length,
+    skippedDuplicate: valid.length - newJobs.length,
+  }
 }
