@@ -7,6 +7,7 @@
 //     instead of calling Claude, so results are illustrative, not real model output
 
 import type { DeepAnalysisOutput, FitProfile, RubricOutput } from './rubric'
+import type { ResearchOutput } from './research'
 
 export const DEMO_MODE = process.env.DEMO_MODE === 'true' || !process.env.ANTHROPIC_API_KEY
 
@@ -158,4 +159,34 @@ export function mockCoverLetter(jobTitle: string, company: string, jobDescriptio
     '',
     'Demo mode: this letter comes from a template. Add an API key to have Claude draft it and a second pass review it.',
   ].join('\n\n')
+}
+
+/**
+ * Stand-in for the company research agent. No web access in demo mode, so it
+ * says so plainly and builds the rest from the posting and resume overlap.
+ */
+export function mockResearch(company: string, title: string, jobDescription: string, resumeText: string): ResearchOutput {
+  const { matchedKeywords, missingKeywords, fitScore: score } = mockAnalyze(jobDescription, resumeText)
+  const org = company || 'This employer'
+  const top = matchedKeywords.slice(0, 3)
+  const verdict = score >= 70 ? 'strong' : score >= 45 ? 'mixed' : 'weak'
+  return {
+    overview: `${org} is hiring a ${title || 'new team member'}. Demo mode has no web access, so this overview is a placeholder; with an API key, Claude searches the web for what ${org} does, its size and recent news.`,
+    recentNews: [],
+    fit: {
+      verdict,
+      reasons: [
+        top.length ? `The posting asks for ${top.join(', ')}, which the resume already shows.` : 'Few of the posting\'s named skills appear in the resume.',
+        missingKeywords.length ? `Gaps to address: ${missingKeywords.slice(0, 3).join(', ')}.` : 'No obvious skill gaps against the posting.',
+      ],
+    },
+    talkingPoints: top.map(k => `A concrete project where you used ${k}, with the result it produced.`),
+    concerns: missingKeywords.length > 3 ? [`The posting lists ${missingKeywords.length} skills the resume does not mention.`] : [],
+    questionsToAsk: [`What would success look like for this ${title || 'role'} in the first six months?`, 'Which team would I work with most closely day to day?'],
+    letterAdvice: [
+      top[0] ? `Lead with your strongest ${top[0]} example.` : 'Lead with the experience closest to the posting\'s main duty.',
+      'Mention one specific fact about the company once real research is available.',
+    ],
+    confidence: 'low',
+  }
 }

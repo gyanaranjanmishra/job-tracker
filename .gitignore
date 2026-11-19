@@ -6,6 +6,7 @@
 # your personal data (resumes, jobs) and the demo scratch copy
 data/
 .demo-data/
+.demo-data.seed-*/
 
 # build / deps
 node_modules/

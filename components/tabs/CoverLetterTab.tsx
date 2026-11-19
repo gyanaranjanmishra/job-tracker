@@ -41,7 +41,7 @@ export function CoverLetterGenerator({ fw, jobs, personaId, regions, roles }: { 
   const generate = async () => {
     setLoading(true); setError(''); setResult(''); setReview(null); setShowDraft(false)
     try {
-      const res = await fw('/api/coverletter', { method: 'POST', body: JSON.stringify({ jobTitle, company, jobDescription: jd, tone, resumeId: selectedResumeId || undefined, roleId: selectedRoleId || undefined }) })
+      const res = await fw('/api/coverletter', { method: 'POST', body: JSON.stringify({ jobTitle, company, jobDescription: jd, tone, jobId: selectedJobId || undefined, resumeId: selectedResumeId || undefined, roleId: selectedRoleId || undefined }) })
       const data = await res.json()
       if (data.error) setError(data.error)
       else { setResult(data.coverLetter); setReview(data) }
@@ -127,7 +127,7 @@ export function LetterReview({ review, showDraft, setShowDraft }: { review: any;
     <div style={{ marginTop: 16, ...card, display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <div style={sectionLabel}>REVIEW PASS</div>
-        {review.model && <div style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'DM Mono, monospace' }}>{review.model}</div>}
+        {review.model && <div style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'DM Mono, monospace' }}>{review.usedResearch ? 'with company research · ' : ''}{review.model}</div>}
       </div>
       <div style={{ fontSize: 13, color: 'var(--text)' }}>
         {review.revised

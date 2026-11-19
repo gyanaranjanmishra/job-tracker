@@ -9,7 +9,7 @@ import type { z } from 'zod'
 export const MODEL = process.env.CLAUDE_MODEL || 'claude-haiku-5-5'
 
 let client: Anthropic | null = null
-function getClient(): Anthropic {
+export function getClient(): Anthropic {
   if (!client) client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
   return client
 }
@@ -60,7 +60,7 @@ export async function callStructured<T extends z.ZodType>(call: StructuredCall<T
   }
 }
 
-function toAIError(err: unknown): Error {
+export function toAIError(err: unknown): Error {
   if (err instanceof AIError) return err
   if (err instanceof Anthropic.AuthenticationError) return new AIError('Invalid ANTHROPIC_API_KEY. Check .env.local.')
   if (err instanceof Anthropic.RateLimitError) return new AIError('Rate limited by the Claude API. Wait a moment and retry.')

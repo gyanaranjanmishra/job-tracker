@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import type { Job, JobStatus, RegionConfig, RoleConfig } from '@/lib/storage'
 import { FitBreakdown } from '@/components/FitBreakdown'
+import { ResearchPanel } from '@/components/ResearchPanel'
 import { STATUS_CONFIG, primaryBtn, ghostBtn, sectionLabel, locationBadgeStyle, ScoreBadge, KeywordBox } from '@/components/ui'
 
 // ── Job Card ──────────────────────────────────────────
@@ -20,6 +21,20 @@ export function JobCard({ job, onStatusChange, onDelete, onDescriptionUpdate, on
   const [fetchError, setFetchError] = useState('')
   const [exporting, setExporting] = useState(false)
   const [exportMsg, setExportMsg] = useState('')
+  const [research, setResearch] = useState(job.research)
+  const [researching, setResearching] = useState(false)
+  const [researchError, setResearchError] = useState('')
+
+  const runResearch = async () => {
+    setResearching(true); setResearchError('')
+    try {
+      const res = await fw('/api/research', { method: 'POST', body: JSON.stringify({ jobId: job.id }) })
+      const data = await res.json()
+      if (data.error) setResearchError(data.error)
+      else setResearch(data.research)
+    } catch { setResearchError('Research failed.') }
+    setResearching(false)
+  }
 
   const checklist = job.checklist || []
   const doneCount = checklist.filter(c => c.done).length
@@ -115,8 +130,18 @@ export function JobCard({ job, onStatusChange, onDelete, onDescriptionUpdate, on
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
             {job.url && <a href={job.url} target="_blank" rel="noopener noreferrer" style={{ ...primaryBtn, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>↗ View Posting</a>}
             {job.atsAnalysis && <button onClick={exportPDF} disabled={exporting} style={{ ...ghostBtn, color: '#7c6fe8', borderColor: '#7c6fe8', opacity: exporting ? 0.6 : 1 }}>{exporting ? 'Exporting…' : '↓ Export PDF'}</button>}
+            <button onClick={runResearch} disabled={researching || !job.company.trim()} title="Claude searches the web for this employer (about 5 searches), then reviews fit and cover letter angles"
+              style={{ ...ghostBtn, color: '#0a7d6a', borderColor: '#0a7d6a', opacity: researching ? 0.6 : 1 }}>
+              {researching ? 'Researching… (up to a minute)' : research ? '↻ Re-research company' : '🔎 Research company'}
+            </button>
             {exportMsg && <span style={{ fontSize: 12, fontFamily: 'DM Mono, monospace', color: exportMsg.startsWith('Error') ? 'var(--danger)' : 'var(--accent3)' }}>{exportMsg}</span>}
+            {researchError && <span style={{ fontSize: 12, color: 'var(--danger)' }}>{researchError}</span>}
           </div>
+          {research && (
+            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 16px' }}>
+              <ResearchPanel research={research} />
+            </div>
+          )}
           {(job.rubric || job.postingFlags?.length) ? (
             <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 16px' }}>
               <FitBreakdown rubric={job.rubric} flags={job.postingFlags} />

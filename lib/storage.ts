@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { DEMO_MODE } from './demo'
 import { normaliseProfile, type FitProfile, type RubricResult } from './rubric'
 import type { GuardFinding } from './guard'
+import type { CompanyResearch } from './research'
 
 // Real data lives in data/ (gitignored). Demo mode works on a scratch copy of
 // sample-data/ in .demo-data/ (also gitignored), so the committed samples stay clean.
@@ -12,8 +13,12 @@ const DATA_DIR = path.join(process.cwd(), DEMO_MODE ? '.demo-data' : 'data')
 const SAMPLE_DIR = path.join(process.cwd(), 'sample-data')
 if (!fs.existsSync(DATA_DIR)) {
   if (DEMO_MODE && fs.existsSync(SAMPLE_DIR)) {
-    fs.cpSync(SAMPLE_DIR, DATA_DIR, { recursive: true })
-    shiftSampleDates(DATA_DIR)
+    // Seed into a private temp dir, then rename into place. `next build` loads this
+    // module in several workers at once; a rename is atomic, so the losers discard their copy.
+    const tmp = `${DATA_DIR}.seed-${process.pid}-${Math.random().toString(36).slice(2)}`
+    fs.cpSync(SAMPLE_DIR, tmp, { recursive: true })
+    shiftSampleDates(tmp)
+    try { fs.renameSync(tmp, DATA_DIR) } catch { fs.rmSync(tmp, { recursive: true, force: true }) }
   } else fs.mkdirSync(DATA_DIR, { recursive: true })
 }
 
@@ -83,6 +88,7 @@ export interface Job {
   roleId?: string
   checklist?: ChecklistItem[]
   rubric?: RubricResult
+  research?: CompanyResearch
   postingFlags?: GuardFinding[]
 }
 
