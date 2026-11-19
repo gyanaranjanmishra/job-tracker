@@ -1,0 +1,18 @@
+[
+  {
+    "id": "resume-ds",
+    "name": "Data Scientist resume",
+    "regionId": "region-canada",
+    "roleId": "role-ds",
+    "text": "ALEX MORGAN\nToronto, ON | alex.morgan@example.com | github.com/example\n\nSUMMARY\nData scientist with 5 years of experience building machine learning models and analytics products. Comfortable owning problems end to end, from SQL extraction and feature engineering to deployment and stakeholder communication.\n\nSKILLS\nPython, SQL, pandas, NumPy, scikit-learn, XGBoost, PyTorch, Statistics, Regression, Classification, Forecasting, Time Series, A/B testing, Tableau, Git, Docker, AWS\n\nEXPERIENCE\nData Scientist, Example Retail Co. (2022 to present)\n- Built a demand forecasting model (XGBoost) that cut stock-outs by 18% across 300 stores\n- Designed and analysed A/B tests for pricing changes; results presented to the leadership team\n- Automated weekly reporting with Python and SQL, saving the analytics team 6 hours per week\n\nData Analyst, Sample Insurance Ltd. (2020 to 2022)\n- Built Tableau dashboards for claims operations used by 40+ staff\n- Developed a classification model to flag likely fraudulent claims for manual review\n\nEDUCATION\nM.Sc. Statistics, Example University\n",
+    "updatedAt": "2026-10-03T15:00:00Z"
+  },
+  {
+    "id": "resume-da",
+    "name": "Data Analyst resume",
+    "regionId": "region-canada",
+    "roleId": "role-da",
+    "text": "ALEX MORGAN\nToronto, ON | alex.morgan@example.com | github.com/example\n\nSUMMARY\nData analyst with 5 years of experience building machine learning models and analytics products. Comfortable owning problems end to end, from SQL extraction and feature engineering to deployment and stakeholder communication.\n\nSKILLS\nPython, SQL, pandas, NumPy, scikit-learn, XGBoost, PyTorch, Statistics, Regression, Classification, Forecasting, Time Series, A/B testing, Tableau, Git, Docker, AWS\n\nEXPERIENCE\nData Scientist, Example Retail Co. (2022 to present)\n- Built a demand forecasting model (XGBoost) that cut stock-outs by 18% across 300 stores\n- Designed and analysed A/B tests for pricing changes; results presented to the leadership team\n- Automated weekly reporting with Python and SQL, saving the analytics team 6 hours per week\n\nData Analyst, Sample Insurance Ltd. (2020 to 2022)\n- Built Tableau dashboards for claims operations used by 40+ staff\n- Developed a classification model to flag likely fraudulent claims for manual review\n\nEDUCATION\nM.Sc. Statistics, Example University\n",
+    "updatedAt": "2026-10-03T15:00:00Z"
+  }
+]

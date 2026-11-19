@@ -1,0 +1,235 @@
+[
+  {
+    "role": "Data Scientist",
+    "skills": [
+      {
+        "name": "Python",
+        "count": 4,
+        "missingCount": 0,
+        "matchedCount": 4,
+        "jobIds": [
+          "job-01",
+          "job-02",
+          "job-06",
+          "job-12"
+        ]
+      },
+      {
+        "name": "SQL",
+        "count": 3,
+        "missingCount": 0,
+        "matchedCount": 3,
+        "jobIds": [
+          "job-01",
+          "job-02",
+          "job-06"
+        ]
+      },
+      {
+        "name": "MLOps",
+        "count": 1,
+        "missingCount": 1,
+        "matchedCount": 0,
+        "jobIds": [
+          "job-01"
+        ]
+      },
+      {
+        "name": "AWS",
+        "count": 1,
+        "missingCount": 0,
+        "matchedCount": 1,
+        "jobIds": [
+          "job-01"
+        ]
+      },
+      {
+        "name": "XGBoost",
+        "count": 1,
+        "missingCount": 0,
+        "matchedCount": 1,
+        "jobIds": [
+          "job-01"
+        ]
+      },
+      {
+        "name": "A/B testing",
+        "count": 1,
+        "missingCount": 0,
+        "matchedCount": 1,
+        "jobIds": [
+          "job-01"
+        ]
+      },
+      {
+        "name": "Tableau",
+        "count": 1,
+        "missingCount": 0,
+        "matchedCount": 1,
+        "jobIds": [
+          "job-02"
+        ]
+      },
+      {
+        "name": "Forecasting",
+        "count": 1,
+        "missingCount": 0,
+        "matchedCount": 1,
+        "jobIds": [
+          "job-02"
+        ]
+      },
+      {
+        "name": "Time Series",
+        "count": 1,
+        "missingCount": 0,
+        "matchedCount": 1,
+        "jobIds": [
+          "job-02"
+        ]
+      },
+      {
+        "name": "Experimentation",
+        "count": 1,
+        "missingCount": 1,
+        "matchedCount": 0,
+        "jobIds": [
+          "job-06"
+        ]
+      },
+      {
+        "name": "Causal Inference",
+        "count": 1,
+        "missingCount": 1,
+        "matchedCount": 0,
+        "jobIds": [
+          "job-06"
+        ]
+      },
+      {
+        "name": "Product Analytics",
+        "count": 1,
+        "missingCount": 1,
+        "matchedCount": 0,
+        "jobIds": [
+          "job-06"
+        ]
+      },
+      {
+        "name": "Spark",
+        "count": 1,
+        "missingCount": 1,
+        "matchedCount": 0,
+        "jobIds": [
+          "job-12"
+        ]
+      },
+      {
+        "name": "Docker",
+        "count": 1,
+        "missingCount": 0,
+        "matchedCount": 1,
+        "jobIds": [
+          "job-12"
+        ]
+      },
+      {
+        "name": "Machine Learning",
+        "count": 1,
+        "missingCount": 0,
+        "matchedCount": 1,
+        "jobIds": [
+          "job-12"
+        ]
+      },
+      {
+        "name": "Statistics",
+        "count": 1,
+        "missingCount": 0,
+        "matchedCount": 1,
+        "jobIds": [
+          "job-12"
+        ]
+      }
+    ]
+  },
+  {
+    "role": "Data Analyst",
+    "skills": [
+      {
+        "name": "Python",
+        "count": 2,
+        "missingCount": 0,
+        "matchedCount": 2,
+        "jobIds": [
+          "job-03",
+          "job-10"
+        ]
+      },
+      {
+        "name": "SQL",
+        "count": 2,
+        "missingCount": 0,
+        "matchedCount": 2,
+        "jobIds": [
+          "job-03",
+          "job-10"
+        ]
+      },
+      {
+        "name": "Looker",
+        "count": 1,
+        "missingCount": 1,
+        "matchedCount": 0,
+        "jobIds": [
+          "job-03"
+        ]
+      },
+      {
+        "name": "Product Analytics",
+        "count": 1,
+        "missingCount": 1,
+        "matchedCount": 0,
+        "jobIds": [
+          "job-03"
+        ]
+      },
+      {
+        "name": "A/B testing",
+        "count": 1,
+        "missingCount": 0,
+        "matchedCount": 1,
+        "jobIds": [
+          "job-03"
+        ]
+      },
+      {
+        "name": "Excel",
+        "count": 1,
+        "missingCount": 1,
+        "matchedCount": 0,
+        "jobIds": [
+          "job-10"
+        ]
+      },
+      {
+        "name": "Forecasting",
+        "count": 1,
+        "missingCount": 0,
+        "matchedCount": 1,
+        "jobIds": [
+          "job-10"
+        ]
+      },
+      {
+        "name": "Communication",
+        "count": 1,
+        "missingCount": 0,
+        "matchedCount": 1,
+        "jobIds": [
+          "job-10"
+        ]
+      }
+    ]
+  }
+]

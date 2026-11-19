@@ -1,0 +1,697 @@
+[
+  {
+    "id": "job-01",
+    "title": "Senior Data Scientist",
+    "company": "Northwind Analytics",
+    "location": "Toronto, ON",
+    "url": "https://example.com/jobs/job-01",
+    "description": "Northwind Analytics is hiring a Senior Data Scientist to join our growing data team. You will partner with product, finance and operations to turn data into decisions. \n\nWhat you'll do:\n- Build analyses and models that answer key business questions\n- Communicate findings clearly to non-technical stakeholders\n- Own projects end to end\n\nWhat we're looking for:\n- Experience with Python\n- Experience with SQL\n- Experience with XGBoost\n- Experience with A/B testing\n- Experience with AWS\n- Experience with MLOps\n",
+    "status": "interview",
+    "notes": "Phone screen went well; technical round booked.",
+    "appliedDate": "2026-10-19",
+    "createdAt": "2026-10-13T15:00:00Z",
+    "updatedAt": "2026-10-15T15:00:00Z",
+    "regionId": "region-canada",
+    "roleId": "role-ds",
+    "checklist": [
+      {
+        "id": "job-01-c0",
+        "item": "Tailor resume to job description",
+        "done": true
+      },
+      {
+        "id": "job-01-c1",
+        "item": "Write cover letter",
+        "done": true
+      },
+      {
+        "id": "job-01-c2",
+        "item": "Update LinkedIn profile",
+        "done": true
+      },
+      {
+        "id": "job-01-c3",
+        "item": "Submit application",
+        "done": true
+      },
+      {
+        "id": "job-01-c4",
+        "item": "Follow up after 1 week",
+        "done": true
+      }
+    ],
+    "fitScore": 86,
+    "keywords": [
+      "Python",
+      "SQL",
+      "AWS",
+      "XGBoost",
+      "A/B testing"
+    ],
+    "atsAnalysis": {
+      "summary": "Solid match for Senior Data Scientist: the resume covers Python, SQL, AWS; gaps are MLOps.",
+      "matchedKeywords": [
+        "Python",
+        "SQL",
+        "AWS",
+        "XGBoost",
+        "A/B testing"
+      ],
+      "missingKeywords": [
+        "MLOps"
+      ],
+      "improvedSummary": "Data scientist with 5 years of experience in Python, SQL, AWS, delivering measurable business impact through forecasting, experimentation and clear stakeholder communication.",
+      "suggestions": [
+        {
+          "section": "Experience",
+          "original": "",
+          "improved": "Add a bullet describing hands-on work with MLOps, with a measurable result."
+        }
+      ],
+      "analyzedAt": "2026-10-14T15:00:00Z"
+    }
+  },
+  {
+    "id": "job-02",
+    "title": "Data Scientist",
+    "company": "Contoso Retail",
+    "location": "Toronto, ON",
+    "url": "https://example.com/jobs/job-02",
+    "description": "Contoso Retail is hiring a Data Scientist to join our growing data team. You will partner with product, finance and operations to turn data into decisions. \n\nWhat you'll do:\n- Build analyses and models that answer key business questions\n- Communicate findings clearly to non-technical stakeholders\n- Own projects end to end\n\nWhat we're looking for:\n- Experience with Python\n- Experience with SQL\n- Experience with Forecasting\n- Experience with Time Series\n- Experience with Tableau\n",
+    "status": "applied",
+    "notes": "",
+    "appliedDate": "2026-10-24",
+    "createdAt": "2026-10-21T15:00:00Z",
+    "updatedAt": "2026-10-23T15:00:00Z",
+    "regionId": "region-canada",
+    "roleId": "role-ds",
+    "checklist": [
+      {
+        "id": "job-02-c0",
+        "item": "Tailor resume to job description",
+        "done": true
+      },
+      {
+        "id": "job-02-c1",
+        "item": "Write cover letter",
+        "done": true
+      },
+      {
+        "id": "job-02-c2",
+        "item": "Update LinkedIn profile",
+        "done": true
+      },
+      {
+        "id": "job-02-c3",
+        "item": "Submit application",
+        "done": true
+      },
+      {
+        "id": "job-02-c4",
+        "item": "Follow up after 1 week",
+        "done": false
+      }
+    ],
+    "fitScore": 91,
+    "keywords": [
+      "Python",
+      "SQL",
+      "Tableau",
+      "Forecasting",
+      "Time Series"
+    ],
+    "atsAnalysis": {
+      "summary": "Solid match for Data Scientist: the resume covers Python, SQL, Tableau.",
+      "matchedKeywords": [
+        "Python",
+        "SQL",
+        "Tableau",
+        "Forecasting",
+        "Time Series"
+      ],
+      "missingKeywords": [],
+      "improvedSummary": "Data scientist with 5 years of experience in Python, SQL, Tableau, delivering measurable business impact through forecasting, experimentation and clear stakeholder communication.",
+      "suggestions": [],
+      "analyzedAt": "2026-10-22T15:00:00Z"
+    }
+  },
+  {
+    "id": "job-03",
+    "title": "Data Analyst, Growth",
+    "company": "Fabrikam Health",
+    "location": "Remote (Canada)",
+    "url": "https://example.com/jobs/job-03",
+    "description": "Fabrikam Health is hiring a Data Analyst, Growth to join our growing data team. You will partner with product, finance and operations to turn data into decisions. \n\nWhat you'll do:\n- Build analyses and models that answer key business questions\n- Communicate findings clearly to non-technical stakeholders\n- Own projects end to end\n\nWhat we're looking for:\n- Experience with SQL\n- Experience with Python\n- Experience with Looker\n- Experience with A/B testing\n- Experience with Product Analytics\n",
+    "status": "applied",
+    "notes": "",
+    "appliedDate": "2026-10-26",
+    "createdAt": "2026-10-23T15:00:00Z",
+    "updatedAt": "2026-10-25T15:00:00Z",
+    "regionId": "region-remote",
+    "roleId": "role-da",
+    "checklist": [
+      {
+        "id": "job-03-c0",
+        "item": "Tailor resume to job description",
+        "done": true
+      },
+      {
+        "id": "job-03-c1",
+        "item": "Write cover letter",
+        "done": true
+      },
+      {
+        "id": "job-03-c2",
+        "item": "Update LinkedIn profile",
+        "done": true
+      },
+      {
+        "id": "job-03-c3",
+        "item": "Submit application",
+        "done": true
+      },
+      {
+        "id": "job-03-c4",
+        "item": "Follow up after 1 week",
+        "done": false
+      }
+    ],
+    "fitScore": 72,
+    "keywords": [
+      "Python",
+      "SQL",
+      "A/B testing"
+    ],
+    "atsAnalysis": {
+      "summary": "Solid match for Data Analyst, Growth: the resume covers Python, SQL, A/B testing; gaps are Looker, Product Analytics.",
+      "matchedKeywords": [
+        "Python",
+        "SQL",
+        "A/B testing"
+      ],
+      "missingKeywords": [
+        "Looker",
+        "Product Analytics"
+      ],
+      "improvedSummary": "Data scientist with 5 years of experience in Python, SQL, A/B testing, delivering measurable business impact through forecasting, experimentation and clear stakeholder communication.",
+      "suggestions": [
+        {
+          "section": "Experience",
+          "original": "",
+          "improved": "Add a bullet describing hands-on work with Looker, with a measurable result."
+        },
+        {
+          "section": "Experience",
+          "original": "",
+          "improved": "Add a bullet describing hands-on work with Product Analytics, with a measurable result."
+        }
+      ],
+      "analyzedAt": "2026-10-24T15:00:00Z"
+    }
+  },
+  {
+    "id": "job-04",
+    "title": "Machine Learning Scientist",
+    "company": "Tailspin Mobility",
+    "location": "Vancouver, BC",
+    "url": "https://example.com/jobs/job-04",
+    "description": "Tailspin Mobility is hiring a Machine Learning Scientist to join our growing data team. You will partner with product, finance and operations to turn data into decisions. \n\nWhat you'll do:\n- Build analyses and models that answer key business questions\n- Communicate findings clearly to non-technical stakeholders\n- Own projects end to end\n\nWhat we're looking for:\n- Experience with Python\n- Experience with PyTorch\n- Experience with Deep Learning\n- Experience with Computer Vision\n- Experience with Kubernetes\n",
+    "status": "saved",
+    "notes": "",
+    "appliedDate": "",
+    "createdAt": "2026-10-27T15:00:00Z",
+    "updatedAt": "2026-10-29T15:00:00Z",
+    "regionId": "region-canada",
+    "roleId": "role-ds",
+    "checklist": [
+      {
+        "id": "job-04-c0",
+        "item": "Tailor resume to job description",
+        "done": true
+      },
+      {
+        "id": "job-04-c1",
+        "item": "Write cover letter",
+        "done": false
+      },
+      {
+        "id": "job-04-c2",
+        "item": "Update LinkedIn profile",
+        "done": false
+      },
+      {
+        "id": "job-04-c3",
+        "item": "Submit application",
+        "done": false
+      },
+      {
+        "id": "job-04-c4",
+        "item": "Follow up after 1 week",
+        "done": false
+      }
+    ],
+    "fitScore": 58,
+    "keywords": [
+      "Python",
+      "PyTorch",
+      "Machine Learning"
+    ]
+  },
+  {
+    "id": "job-05",
+    "title": "Data Analyst",
+    "company": "Woodgrove Bank",
+    "location": "Toronto, ON",
+    "url": "https://example.com/jobs/job-05",
+    "description": "Woodgrove Bank is hiring a Data Analyst to join our growing data team. You will partner with product, finance and operations to turn data into decisions. \n\nWhat you'll do:\n- Build analyses and models that answer key business questions\n- Communicate findings clearly to non-technical stakeholders\n- Own projects end to end\n\nWhat we're looking for:\n- Experience with SQL\n- Experience with Excel\n- Experience with Power BI\n- Experience with Statistics\n- Experience with Stakeholder Management\n",
+    "status": "rejected",
+    "notes": "Rejected after final round; feedback: wanted more banking domain experience.",
+    "appliedDate": "2026-10-03",
+    "createdAt": "2026-09-28T15:00:00Z",
+    "updatedAt": "2026-09-30T15:00:00Z",
+    "regionId": "region-canada",
+    "roleId": "role-da",
+    "checklist": [
+      {
+        "id": "job-05-c0",
+        "item": "Tailor resume to job description",
+        "done": true
+      },
+      {
+        "id": "job-05-c1",
+        "item": "Write cover letter",
+        "done": true
+      },
+      {
+        "id": "job-05-c2",
+        "item": "Update LinkedIn profile",
+        "done": true
+      },
+      {
+        "id": "job-05-c3",
+        "item": "Submit application",
+        "done": true
+      },
+      {
+        "id": "job-05-c4",
+        "item": "Follow up after 1 week",
+        "done": true
+      }
+    ],
+    "fitScore": 64,
+    "keywords": [
+      "SQL",
+      "Statistics"
+    ]
+  },
+  {
+    "id": "job-06",
+    "title": "Product Data Scientist",
+    "company": "Adventure Works",
+    "location": "Remote",
+    "url": "https://example.com/jobs/job-06",
+    "description": "Adventure Works is hiring a Product Data Scientist to join our growing data team. You will partner with product, finance and operations to turn data into decisions. \n\nWhat you'll do:\n- Build analyses and models that answer key business questions\n- Communicate findings clearly to non-technical stakeholders\n- Own projects end to end\n\nWhat we're looking for:\n- Experience with Python\n- Experience with SQL\n- Experience with Experimentation\n- Experience with Causal Inference\n- Experience with Product Analytics\n",
+    "status": "offer",
+    "notes": "Offer received; reviewing compensation.",
+    "appliedDate": "2026-09-30",
+    "createdAt": "2026-09-23T15:00:00Z",
+    "updatedAt": "2026-09-25T15:00:00Z",
+    "regionId": "region-remote",
+    "roleId": "role-ds",
+    "checklist": [
+      {
+        "id": "job-06-c0",
+        "item": "Tailor resume to job description",
+        "done": true
+      },
+      {
+        "id": "job-06-c1",
+        "item": "Write cover letter",
+        "done": true
+      },
+      {
+        "id": "job-06-c2",
+        "item": "Update LinkedIn profile",
+        "done": true
+      },
+      {
+        "id": "job-06-c3",
+        "item": "Submit application",
+        "done": true
+      },
+      {
+        "id": "job-06-c4",
+        "item": "Follow up after 1 week",
+        "done": true
+      }
+    ],
+    "fitScore": 83,
+    "keywords": [
+      "Python",
+      "SQL"
+    ],
+    "atsAnalysis": {
+      "summary": "Solid match for Product Data Scientist: the resume covers Python, SQL; gaps are Experimentation, Causal Inference, Product Analytics.",
+      "matchedKeywords": [
+        "Python",
+        "SQL"
+      ],
+      "missingKeywords": [
+        "Experimentation",
+        "Causal Inference",
+        "Product Analytics"
+      ],
+      "improvedSummary": "Data scientist with 5 years of experience in Python, SQL, delivering measurable business impact through forecasting, experimentation and clear stakeholder communication.",
+      "suggestions": [
+        {
+          "section": "Experience",
+          "original": "",
+          "improved": "Add a bullet describing hands-on work with Experimentation, with a measurable result."
+        },
+        {
+          "section": "Experience",
+          "original": "",
+          "improved": "Add a bullet describing hands-on work with Causal Inference, with a measurable result."
+        },
+        {
+          "section": "Experience",
+          "original": "",
+          "improved": "Add a bullet describing hands-on work with Product Analytics, with a measurable result."
+        }
+      ],
+      "analyzedAt": "2026-09-24T15:00:00Z"
+    }
+  },
+  {
+    "id": "job-07",
+    "title": "Analytics Engineer",
+    "company": "Litware Labs",
+    "location": "Berlin, Germany",
+    "url": "https://example.com/jobs/job-07",
+    "description": "Litware Labs is hiring a Analytics Engineer to join our growing data team. You will partner with product, finance and operations to turn data into decisions. \n\nWhat you'll do:\n- Build analyses and models that answer key business questions\n- Communicate findings clearly to non-technical stakeholders\n- Own projects end to end\n\nWhat we're looking for:\n- Experience with SQL\n- Experience with dbt\n- Experience with Airflow\n- Experience with Snowflake\n- Experience with Data Warehousing\n",
+    "status": "saved",
+    "notes": "",
+    "appliedDate": "",
+    "createdAt": "2026-10-29T15:00:00Z",
+    "updatedAt": "2026-10-31T15:00:00Z",
+    "regionId": "region-europe",
+    "roleId": "role-da",
+    "checklist": [
+      {
+        "id": "job-07-c0",
+        "item": "Tailor resume to job description",
+        "done": false
+      },
+      {
+        "id": "job-07-c1",
+        "item": "Write cover letter",
+        "done": false
+      },
+      {
+        "id": "job-07-c2",
+        "item": "Update LinkedIn profile",
+        "done": false
+      },
+      {
+        "id": "job-07-c3",
+        "item": "Submit application",
+        "done": false
+      },
+      {
+        "id": "job-07-c4",
+        "item": "Follow up after 1 week",
+        "done": false
+      }
+    ],
+    "fitScore": 47,
+    "keywords": [
+      "SQL"
+    ]
+  },
+  {
+    "id": "job-08",
+    "title": "Data Scientist, NLP",
+    "company": "Proseware",
+    "location": "Remote",
+    "url": "https://example.com/jobs/job-08",
+    "description": "Proseware is hiring a Data Scientist, NLP to join our growing data team. You will partner with product, finance and operations to turn data into decisions. \n\nWhat you'll do:\n- Build analyses and models that answer key business questions\n- Communicate findings clearly to non-technical stakeholders\n- Own projects end to end\n\nWhat we're looking for:\n- Experience with Python\n- Experience with NLP\n- Experience with LLM\n- Experience with PyTorch\n- Experience with AWS\n",
+    "status": "saved",
+    "notes": "",
+    "appliedDate": "",
+    "createdAt": "2026-10-30T15:00:00Z",
+    "updatedAt": "2026-11-01T15:00:00Z",
+    "regionId": "region-remote",
+    "roleId": "role-ds",
+    "checklist": [
+      {
+        "id": "job-08-c0",
+        "item": "Tailor resume to job description",
+        "done": false
+      },
+      {
+        "id": "job-08-c1",
+        "item": "Write cover letter",
+        "done": false
+      },
+      {
+        "id": "job-08-c2",
+        "item": "Update LinkedIn profile",
+        "done": false
+      },
+      {
+        "id": "job-08-c3",
+        "item": "Submit application",
+        "done": false
+      },
+      {
+        "id": "job-08-c4",
+        "item": "Follow up after 1 week",
+        "done": false
+      }
+    ]
+  },
+  {
+    "id": "job-09",
+    "title": "Business Intelligence Analyst",
+    "company": "Alpine Ski House",
+    "location": "Calgary, AB",
+    "url": "https://example.com/jobs/job-09",
+    "description": "Alpine Ski House is hiring a Business Intelligence Analyst to join our growing data team. You will partner with product, finance and operations to turn data into decisions. \n\nWhat you'll do:\n- Build analyses and models that answer key business questions\n- Communicate findings clearly to non-technical stakeholders\n- Own projects end to end\n\nWhat we're looking for:\n- Experience with SQL\n- Experience with Tableau\n- Experience with Excel\n- Experience with Data Visualization\n- Experience with Dashboard\n",
+    "status": "saved",
+    "notes": "",
+    "appliedDate": "",
+    "createdAt": "2026-10-31T15:00:00Z",
+    "updatedAt": "2026-11-02T15:00:00Z",
+    "regionId": "region-canada",
+    "roleId": "role-da",
+    "checklist": [
+      {
+        "id": "job-09-c0",
+        "item": "Tailor resume to job description",
+        "done": false
+      },
+      {
+        "id": "job-09-c1",
+        "item": "Write cover letter",
+        "done": false
+      },
+      {
+        "id": "job-09-c2",
+        "item": "Update LinkedIn profile",
+        "done": false
+      },
+      {
+        "id": "job-09-c3",
+        "item": "Submit application",
+        "done": false
+      },
+      {
+        "id": "job-09-c4",
+        "item": "Follow up after 1 week",
+        "done": false
+      }
+    ]
+  },
+  {
+    "id": "job-10",
+    "title": "Data Analyst, Finance",
+    "company": "Margie's Travel",
+    "location": "Toronto, ON",
+    "url": "https://example.com/jobs/job-10",
+    "description": "Margie's Travel is hiring a Data Analyst, Finance to join our growing data team. You will partner with product, finance and operations to turn data into decisions. \n\nWhat you'll do:\n- Build analyses and models that answer key business questions\n- Communicate findings clearly to non-technical stakeholders\n- Own projects end to end\n\nWhat we're looking for:\n- Experience with SQL\n- Experience with Excel\n- Experience with Python\n- Experience with Forecasting\n- Experience with Communication\n",
+    "status": "interview",
+    "notes": "Take-home case study due Friday.",
+    "appliedDate": "2026-10-21",
+    "createdAt": "2026-10-15T15:00:00Z",
+    "updatedAt": "2026-10-17T15:00:00Z",
+    "regionId": "region-canada",
+    "roleId": "role-da",
+    "checklist": [
+      {
+        "id": "job-10-c0",
+        "item": "Tailor resume to job description",
+        "done": true
+      },
+      {
+        "id": "job-10-c1",
+        "item": "Write cover letter",
+        "done": true
+      },
+      {
+        "id": "job-10-c2",
+        "item": "Update LinkedIn profile",
+        "done": true
+      },
+      {
+        "id": "job-10-c3",
+        "item": "Submit application",
+        "done": true
+      },
+      {
+        "id": "job-10-c4",
+        "item": "Follow up after 1 week",
+        "done": true
+      }
+    ],
+    "fitScore": 79,
+    "keywords": [
+      "Python",
+      "SQL",
+      "Forecasting",
+      "Communication"
+    ],
+    "atsAnalysis": {
+      "summary": "Solid match for Data Analyst, Finance: the resume covers Python, SQL, Forecasting; gaps are Excel.",
+      "matchedKeywords": [
+        "Python",
+        "SQL",
+        "Forecasting",
+        "Communication"
+      ],
+      "missingKeywords": [
+        "Excel"
+      ],
+      "improvedSummary": "Data scientist with 5 years of experience in Python, SQL, Forecasting, delivering measurable business impact through forecasting, experimentation and clear stakeholder communication.",
+      "suggestions": [
+        {
+          "section": "Experience",
+          "original": "",
+          "improved": "Add a bullet describing hands-on work with Excel, with a measurable result."
+        }
+      ],
+      "analyzedAt": "2026-10-16T15:00:00Z"
+    }
+  },
+  {
+    "id": "job-11",
+    "title": "Senior Data Analyst",
+    "company": "Fourth Coffee",
+    "location": "Montreal, QC",
+    "url": "https://example.com/jobs/job-11",
+    "description": "Fourth Coffee is hiring a Senior Data Analyst to join our growing data team. You will partner with product, finance and operations to turn data into decisions. \n\nWhat you'll do:\n- Build analyses and models that answer key business questions\n- Communicate findings clearly to non-technical stakeholders\n- Own projects end to end\n\nWhat we're looking for:\n- Experience with SQL\n- Experience with Python\n- Experience with BigQuery\n- Experience with Looker\n- Experience with Statistics\n",
+    "status": "saved",
+    "notes": "",
+    "appliedDate": "",
+    "createdAt": "2026-11-01T15:00:00Z",
+    "updatedAt": "2026-11-02T15:00:00Z",
+    "regionId": "region-canada",
+    "roleId": "role-da",
+    "checklist": [
+      {
+        "id": "job-11-c0",
+        "item": "Tailor resume to job description",
+        "done": false
+      },
+      {
+        "id": "job-11-c1",
+        "item": "Write cover letter",
+        "done": false
+      },
+      {
+        "id": "job-11-c2",
+        "item": "Update LinkedIn profile",
+        "done": false
+      },
+      {
+        "id": "job-11-c3",
+        "item": "Submit application",
+        "done": false
+      },
+      {
+        "id": "job-11-c4",
+        "item": "Follow up after 1 week",
+        "done": false
+      }
+    ]
+  },
+  {
+    "id": "job-12",
+    "title": "Applied Scientist",
+    "company": "Trey Research",
+    "location": "Amsterdam, Netherlands",
+    "url": "https://example.com/jobs/job-12",
+    "description": "Trey Research is hiring a Applied Scientist to join our growing data team. You will partner with product, finance and operations to turn data into decisions. \n\nWhat you'll do:\n- Build analyses and models that answer key business questions\n- Communicate findings clearly to non-technical stakeholders\n- Own projects end to end\n\nWhat we're looking for:\n- Experience with Python\n- Experience with Machine Learning\n- Experience with Spark\n- Experience with Statistics\n- Experience with Docker\n",
+    "status": "saved",
+    "notes": "",
+    "appliedDate": "",
+    "createdAt": "2026-10-28T15:00:00Z",
+    "updatedAt": "2026-10-30T15:00:00Z",
+    "regionId": "region-europe",
+    "roleId": "role-ds",
+    "checklist": [
+      {
+        "id": "job-12-c0",
+        "item": "Tailor resume to job description",
+        "done": false
+      },
+      {
+        "id": "job-12-c1",
+        "item": "Write cover letter",
+        "done": false
+      },
+      {
+        "id": "job-12-c2",
+        "item": "Update LinkedIn profile",
+        "done": false
+      },
+      {
+        "id": "job-12-c3",
+        "item": "Submit application",
+        "done": false
+      },
+      {
+        "id": "job-12-c4",
+        "item": "Follow up after 1 week",
+        "done": false
+      }
+    ],
+    "fitScore": 69,
+    "keywords": [
+      "Python",
+      "Docker",
+      "Machine Learning",
+      "Statistics"
+    ],
+    "atsAnalysis": {
+      "summary": "Solid match for Applied Scientist: the resume covers Python, Docker, Machine Learning; gaps are Spark.",
+      "matchedKeywords": [
+        "Python",
+        "Docker",
+        "Machine Learning",
+        "Statistics"
+      ],
+      "missingKeywords": [
+        "Spark"
+      ],
+      "improvedSummary": "Data scientist with 5 years of experience in Python, Docker, Machine Learning, delivering measurable business impact through forecasting, experimentation and clear stakeholder communication.",
+      "suggestions": [
+        {
+          "section": "Experience",
+          "original": "",
+          "improved": "Add a bullet describing hands-on work with Spark, with a measurable result."
+        }
+      ],
+      "analyzedAt": "2026-10-29T15:00:00Z"
+    }
+  }
+]

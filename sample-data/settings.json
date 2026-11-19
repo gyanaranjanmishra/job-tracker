@@ -1,0 +1,31 @@
+{
+  "personas": [
+    {
+      "id": "demo-persona",
+      "name": "Demo User",
+      "createdAt": "2026-09-03T15:00:00Z"
+    }
+  ],
+  "checklistTemplate": [
+    {
+      "id": "tpl-0",
+      "item": "Tailor resume to job description"
+    },
+    {
+      "id": "tpl-1",
+      "item": "Write cover letter"
+    },
+    {
+      "id": "tpl-2",
+      "item": "Update LinkedIn profile"
+    },
+    {
+      "id": "tpl-3",
+      "item": "Submit application"
+    },
+    {
+      "id": "tpl-4",
+      "item": "Follow up after 1 week"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+# secrets
+.env
+.env.local
+.env*.local
+
+# your personal data (resumes, jobs) and the demo scratch copy
+data/
+.demo-data/
+
+# build / deps
+node_modules/
+.next/
+*.tsbuildinfo
+
+# misc
+*.log
+*.sw?
+.DS_Store

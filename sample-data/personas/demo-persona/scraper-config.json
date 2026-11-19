@@ -1,0 +1,16 @@
+{
+  "keywords": [
+    "Data Scientist",
+    "Data Analyst"
+  ],
+  "sources": {
+    "remotive": true,
+    "arbeitnow": true,
+    "themuse": true,
+    "adzuna": false
+  },
+  "companies": [],
+  "interval": "daily",
+  "enabled": false,
+  "lastRun": ""
+}
