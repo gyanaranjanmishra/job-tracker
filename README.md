@@ -4,7 +4,7 @@ A self-hosted job search tool built with Next.js and the Claude API. It pulls po
 
 **Runs without an API key.** With no key set, the app starts in demo mode with sample data and a local keyword matcher, so you can try every screen for free.
 
-![Pipeline](docs/screenshots/pipeline.jpg)
+![Pipeline](docs/screenshots/pipeline.png)
 
 ## Features
 
@@ -22,7 +22,7 @@ A self-hosted job search tool built with Next.js and the Claude API. It pulls po
 
 | Dashboard | Learning Radar |
 |---|---|
-| ![Dashboard](docs/screenshots/dashboard.jpg) | ![Learning Radar](docs/screenshots/learning.jpg) |
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Learning Radar](docs/screenshots/learning.png) |
 
 ## Quick start
 
@@ -58,7 +58,8 @@ Scoring uses Claude Haiku. A typical analysis costs a fraction of a cent.
 
 Demo mode is on when `ANTHROPIC_API_KEY` is empty, or when `DEMO_MODE=true`.
 
-- Data is copied from `sample-data/` (fictional companies and a fictional resume) into `.demo-data/` on first run. Delete `.demo-data/` to reset it.
+- Data is copied from `sample-data/` (fictional companies and a fictional resume) into `.demo-data/` on first run, with dates shifted so the newest job is today. Delete `.demo-data/` to reset it.
+- Any tab can be opened directly with `?tab=`, for example http://localhost:3000/?tab=learning.
 - ATS analysis and cover letters come from `lib/demo.ts`: a deterministic keyword matcher and a template. They show how the app works but are not real model output. A banner in the UI says so.
 - Job scraping still works in demo mode, because the job board APIs it uses are public (Adzuna needs its own free key).
 
@@ -87,6 +88,10 @@ scripts/                     Optional Windows/WSL auto-start with PM2
 Storage is plain JSON files under `data/personas/<id>/` (jobs, resumes, regions, roles, learning, scraper config). There is no database or auth, because the app is meant to run locally for one person.
 
 **Stack:** Next.js 14 (App Router), React 18, TypeScript, Tailwind, Anthropic SDK, cheerio, pdfkit.
+
+## Why there is no hosted demo
+
+The app writes to JSON files on local disk and has no authentication, so it is built to run on your own machine. Serverless hosts such as Vercel have a read-only or temporary filesystem, so saving jobs would fail there, and a public deployment with an API key would let anyone spend that key. Run it locally (demo mode needs no key) instead.
 
 ## Running in the background (optional, WSL2 on Windows)
 

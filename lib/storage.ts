@@ -9,8 +9,38 @@ import { DEMO_MODE } from './demo'
 const DATA_DIR = path.join(process.cwd(), DEMO_MODE ? '.demo-data' : 'data')
 const SAMPLE_DIR = path.join(process.cwd(), 'sample-data')
 if (!fs.existsSync(DATA_DIR)) {
-  if (DEMO_MODE && fs.existsSync(SAMPLE_DIR)) fs.cpSync(SAMPLE_DIR, DATA_DIR, { recursive: true })
-  else fs.mkdirSync(DATA_DIR, { recursive: true })
+  if (DEMO_MODE && fs.existsSync(SAMPLE_DIR)) {
+    fs.cpSync(SAMPLE_DIR, DATA_DIR, { recursive: true })
+    shiftSampleDates(DATA_DIR)
+  } else fs.mkdirSync(DATA_DIR, { recursive: true })
+}
+
+// Move every date in the sample jobs forward so the newest one is "today",
+// keeping the gaps between them. Otherwise the demo ages and all jobs look old.
+function shiftSampleDates(dir: string): void {
+  const personasDir = path.join(dir, 'personas')
+  if (!fs.existsSync(personasDir)) return
+  for (const p of fs.readdirSync(personasDir)) {
+    const file = path.join(personasDir, p, 'jobs.json')
+    if (!fs.existsSync(file)) continue
+    const jobs = JSON.parse(fs.readFileSync(file, 'utf-8')) as Record<string, any>[]
+    const newest = Math.max(...jobs.map(j => Date.parse(j.createdAt) || 0))
+    if (!newest) continue
+    const offset = Date.now() - newest
+    const shift = (v: string, dateOnly: boolean) => {
+      const t = Date.parse(v)
+      if (!v || isNaN(t)) return v
+      const iso = new Date(t + offset).toISOString()
+      return dateOnly ? iso.slice(0, 10) : iso
+    }
+    for (const j of jobs) {
+      j.createdAt = shift(j.createdAt, false)
+      j.updatedAt = shift(j.updatedAt, false)
+      j.appliedDate = shift(j.appliedDate, true)
+      if (j.atsAnalysis) j.atsAnalysis.analyzedAt = shift(j.atsAnalysis.analyzedAt, false)
+    }
+    fs.writeFileSync(file, JSON.stringify(jobs, null, 2))
+  }
 }
 
 // ── Types ──────────────────────────────────────────────

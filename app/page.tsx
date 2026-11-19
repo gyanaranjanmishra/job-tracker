@@ -211,6 +211,13 @@ export default function Home() {
     setRoles(await roRes.json())
   }, [personaId, fw])
 
+  // Deep link: /?tab=dashboard opens that tab
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get('tab') as Tab | null
+    const tabs: Tab[] = ['tracker', 'dashboard', 'analyze', 'coverletter', 'resume', 'learning', 'sources']
+    if (t && tabs.includes(t)) setTab(t)
+  }, [])
+
   // Bootstrap: load personas, then set active persona from localStorage
   useEffect(() => {
     fetch('/api/personas').then(r => r.json()).then(data => {
@@ -1231,6 +1238,11 @@ function ResumeTab({ fw, personaId, regions, roles, onRegionsRolesChange }: { fw
 function LearningTab({ fw, roles }: { fw: Function; roles: RoleConfig[] }) {
   const [selectedRole, setSelectedRole] = useState('')
   const [data, setData] = useState<{ role: string; skills: any[] } | null>(null)
+
+  // Open on the first role instead of an empty picker
+  useEffect(() => {
+    if (!selectedRole && roles.length) setSelectedRole(roles[0].name)
+  }, [roles])
   const [loading, setLoading] = useState(false)
   const [recomputing, setRecomputing] = useState(false)
   const [msg, setMsg] = useState('')
