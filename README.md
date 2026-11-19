@@ -67,7 +67,7 @@ All model calls go through `lib/ai.ts`, which uses structured outputs (`messages
 
 The overall score is the weighted average, computed in `lib/rubric.ts`, so it is reproducible and you can see why a job scored what it did. Your target seniority, preferred locations, deal-breakers, priorities and weights live in a **Fit preferences** panel on the Resume tab. If a posting explicitly triggers one of your deal-breakers, the score is capped at 25 and the evidence is quoted. Changing your preferences marks every earlier score for re-triage.
 
-**Two stages.** *Triage All* runs the rubric alone at low effort on every new or stale job. *Run Full Analysis* runs the deep pass (rubric plus keywords, rewritten summary and suggestions) on only your top K, which keeps cost down.
+**Two stages.** *Triage All* runs the rubric alone at low effort on every new or stale job, four at a time. *Run Full Analysis* runs the deep pass (rubric plus keywords, rewritten summary and suggestions) on only your top K, which keeps cost down.
 
 **Cover letter review.** The drafter's letter goes to a separate reviewer call that looks for claims not supported by the resume, mismatches with the posting, generic filler and tone problems. A deterministic lint adds checks for stock phrases, length and leftover placeholders. If anything is flagged, a reviser rewrites the letter, and the UI shows what was found, anything still flagged, and the first draft for comparison.
 
@@ -176,11 +176,11 @@ Storage is plain JSON files under `data/personas/<id>/` (jobs, resumes, regions,
 ## Tests
 
 ```bash
-npm test            # Vitest, about 80 tests in about a second
+npm test            # Vitest, about 90 tests in about a second
 npm run typecheck   # tsc --noEmit
 ```
 
-The tests cover the logic that is easy to get subtly wrong: canonical job keys, URL normalisation, duplicate grouping and merging (`tests/jobs.test.ts`), the weighted rubric score, deal-breaker cap and re-triage rule (`tests/rubric.test.ts`), the posting guard's character stripping, injection patterns and false positives on an ordinary posting (`tests/guard.test.ts`), role keyword search and role assignment (`tests/roles.test.ts`), resume extraction from PDF, .docx and text files built in memory during the test (`tests/resume-parse.test.ts`), the triage, deep and cover-letter pipelines end to end with the demo backend (`tests/ai-pipeline.test.ts`), and the research agent's note and source extraction from API content blocks and its prompt isolation (`tests/research.test.ts`). They run with `DEMO_MODE=true`, so no API key or network is needed. GitHub Actions runs the type-check, the tests and `next build` on every push and pull request.
+The tests cover the logic that is easy to get subtly wrong: canonical job keys, URL normalisation, duplicate grouping and merging (`tests/jobs.test.ts`), the weighted rubric score, deal-breaker cap and re-triage rule (`tests/rubric.test.ts`), the posting guard's character stripping, injection patterns and false positives on an ordinary posting (`tests/guard.test.ts`), role keyword search and role assignment (`tests/roles.test.ts`), resume extraction from PDF, .docx and text files built in memory during the test (`tests/resume-parse.test.ts`), the triage, deep and cover-letter pipelines end to end with the demo backend (`tests/ai-pipeline.test.ts`), the research agent's note and source extraction from API content blocks and its prompt isolation (`tests/research.test.ts`), and the bounded request pool and save-time merge used by the parallel Triage All (`tests/pool.test.ts`, `tests/storage.test.ts`). They run with `DEMO_MODE=true`, so no API key or network is needed. GitHub Actions runs the type-check, the tests and `next build` on every push and pull request.
 
 ## Why there is no hosted demo
 

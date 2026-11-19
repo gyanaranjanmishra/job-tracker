@@ -356,6 +356,22 @@ export function saveJob(personaId: string, job: Job): void {
   writeJobs(personaId, jobs)
 }
 
+/**
+ * Merge `patch` into the job as it is on disk now, not as it was when a slow
+ * request (an AI call) started. Edits made meanwhile, such as a status change or
+ * another analysis finishing, are kept. Synchronous, so concurrent requests in
+ * the same server process cannot interleave. Returns the updated job, or
+ * undefined if it was deleted in the meantime.
+ */
+export function updateJob(personaId: string, id: string, patch: Partial<Job>): Job | undefined {
+  const jobs = readJobs(personaId)
+  const idx = jobs.findIndex(j => j.id === id)
+  if (idx < 0) return undefined
+  jobs[idx] = { ...jobs[idx], ...patch, id, updatedAt: new Date().toISOString() }
+  writeJobs(personaId, jobs)
+  return jobs[idx]
+}
+
 export function deleteJob(personaId: string, id: string): void {
   writeJobs(personaId, readJobs(personaId).filter(j => j.id !== id))
 }

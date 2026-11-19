@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getBestResume, getDefaultPersonaId, readJobs, readProfile, saveJob } from '@/lib/storage'
+import { getBestResume, getDefaultPersonaId, readJobs, readProfile, updateJob } from '@/lib/storage'
 import { researchCompany } from '@/lib/research'
 
 // Web research can take a minute (several searches plus a review call).
@@ -27,9 +27,7 @@ export async function POST(req: NextRequest) {
       resumeText,
       profile: readProfile(personaId),
     })
-    job.research = research
-    job.updatedAt = new Date().toISOString()
-    saveJob(personaId, job)
+    if (!updateJob(personaId, job.id, { research })) return NextResponse.json({ error: 'The job was deleted while it was being researched.' }, { status: 404 })
     return NextResponse.json({ research })
   } catch (err: any) {
     console.error('Research error:', err.message)

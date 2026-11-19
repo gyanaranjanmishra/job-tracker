@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import {
-  getBestResume, getDefaultPersonaId, readJobs, readProfile, readResumes, saveJob, updateLearningFromJob,
+  getBestResume, getDefaultPersonaId, readJobs, readProfile, readResumes, updateJob, updateLearningFromJob, type Job,
 } from '@/lib/storage'
 import { deepAnalyzeJob, triageJob, type DeepResult, type TriageResult } from '@/lib/analysis'
 
@@ -41,12 +41,10 @@ export async function POST(req: NextRequest) {
     const result: TriageResult = deep ?? await triageJob(input)
 
     if (job) {
-      job.fitScore = result.fitScore
-      job.rubric = result.rubric
-      job.postingFlags = result.postingFlags
+      const patch: Partial<Job> = { fitScore: result.fitScore, rubric: result.rubric, postingFlags: result.postingFlags }
       if (deep) {
-        job.keywords = deep.matchedKeywords
-        job.atsAnalysis = {
+        patch.keywords = deep.matchedKeywords
+        patch.atsAnalysis = {
           summary: deep.summary,
           matchedKeywords: deep.matchedKeywords,
           missingKeywords: deep.missingKeywords,
@@ -55,9 +53,9 @@ export async function POST(req: NextRequest) {
           analyzedAt: new Date().toISOString(),
         }
       }
-      job.updatedAt = new Date().toISOString()
-      saveJob(personaId, job)
-      if (job.atsAnalysis) updateLearningFromJob(personaId, job)
+      // Merge into the job as it is now; the AI call may have taken a while.
+      const saved = updateJob(personaId, job.id, patch)
+      if (saved?.atsAnalysis) updateLearningFromJob(personaId, saved)
     }
 
     return NextResponse.json({ mode, ...result })

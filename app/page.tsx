@@ -2,6 +2,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { Job, Persona, RegionConfig, RoleConfig } from '@/lib/storage'
 import { needsTriage } from '@/lib/rubric'
+import { runPool } from '@/lib/pool'
+
+// How many analysis requests run at once. Small enough to stay well under API rate limits.
+const TRIAGE_CONCURRENCY = 4
+const DEEP_CONCURRENCY = 2
 import { PersonaDropdown } from '@/components/PersonaDropdown'
 import { Sidebar } from '@/components/Sidebar'
 import { AddJobForm } from '@/components/pipeline/AddJobForm'
@@ -121,14 +126,11 @@ export default function Home() {
     const unscored = jobs.filter(j => needsTriage(j, profileUpdatedAt))
     if (!unscored.length) return
     setAnalyzing(true); setAnalyzeProgress(0); setAnalyzeTotal(unscored.length)
-    for (let i = 0; i < unscored.length; i++) {
-      const job = unscored[i]
-      setAnalyzeProgress(i + 1)
-      try {
-        // Stage 1: cheap rubric triage; the route saves the score and breakdown on the job
-        await fw('/api/analyze', { method: 'POST', body: JSON.stringify({ mode: 'triage', jobId: job.id }) })
-      } catch { /* skip */ }
-    }
+    // Stage 1: cheap rubric triage, a few jobs at a time; the route saves each score on its job.
+    // Failures are skipped (the job stays in the triage queue for next time).
+    await runPool(unscored, TRIAGE_CONCURRENCY,
+      job => fw('/api/analyze', { method: 'POST', body: JSON.stringify({ mode: 'triage', jobId: job.id }) }),
+      done => setAnalyzeProgress(done))
     setAnalyzing(false); fetchJobs()
   }
 
@@ -137,14 +139,10 @@ export default function Home() {
       .sort((a, b) => (b.fitScore ?? 0) - (a.fitScore ?? 0)).slice(0, topK)
     if (!candidates.length) return
     setAnalyzingTopK(true); setTopKProgress(0); setTopKTotal(candidates.length)
-    for (let i = 0; i < candidates.length; i++) {
-      const job = candidates[i]
-      setTopKProgress(i + 1)
-      try {
-        // Stage 2: deep analysis on the shortlist; the route saves everything on the job
-        await fw('/api/analyze', { method: 'POST', body: JSON.stringify({ mode: 'deep', jobId: job.id }) })
-      } catch { /* skip */ }
-    }
+    // Stage 2: deep analysis on the shortlist; the route saves everything on the job
+    await runPool(candidates, DEEP_CONCURRENCY,
+      job => fw('/api/analyze', { method: 'POST', body: JSON.stringify({ mode: 'deep', jobId: job.id }) }),
+      done => setTopKProgress(done))
     setAnalyzingTopK(false); fetchJobs()
   }
 
