@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { load } from 'cheerio'
+import { HIDDEN_STYLE } from '@/lib/guard'
 
 // Selectors tried in order — covers Greenhouse, Lever, and generic job pages
 const DESCRIPTION_SELECTORS = [
@@ -18,22 +19,34 @@ const DESCRIPTION_SELECTORS = [
   'main',
 ]
 
-function extractDescription(html: string): string {
+function extractDescription(html: string): { description: string; hiddenRemoved: number } {
   const $ = load(html)
 
   // Remove noise
-  $('script, style, nav, header, footer, [class*="apply"], [class*="sidebar"], [class*="similar"]').remove()
+  $('script, style, noscript, template, nav, header, footer, [class*="apply"], [class*="sidebar"], [class*="similar"]').remove()
+
+  // Remove text a human reader cannot see. Hidden text in a job posting is a
+  // common way to smuggle instructions to AI screeners.
+  let hiddenRemoved = 0
+  $('[hidden], [aria-hidden="true"], [style]').each((_, el) => {
+    const $el = $(el)
+    const style = $el.attr('style') || ''
+    if ($el.is('[hidden], [aria-hidden="true"]') || HIDDEN_STYLE.test(style)) {
+      if ($el.text().trim()) hiddenRemoved++
+      $el.remove()
+    }
+  })
 
   for (const sel of DESCRIPTION_SELECTORS) {
     const el = $(sel).first()
     if (el.length) {
       const text = el.text().replace(/\s{2,}/g, '\n').trim()
-      if (text.length > 200) return text
+      if (text.length > 200) return { description: text, hiddenRemoved }
     }
   }
 
   // Last resort: body text
-  return $('body').text().replace(/\s{2,}/g, '\n').trim().slice(0, 5000)
+  return { description: $('body').text().replace(/\s{2,}/g, '\n').trim().slice(0, 5000), hiddenRemoved }
 }
 
 export async function POST(req: Request) {
@@ -55,13 +68,13 @@ export async function POST(req: Request) {
     }
 
     const html = await res.text()
-    const description = extractDescription(html)
+    const { description, hiddenRemoved } = extractDescription(html)
 
     if (!description || description.length < 50) {
       return NextResponse.json({ error: 'Could not extract description from this page' }, { status: 422 })
     }
 
-    return NextResponse.json({ description })
+    return NextResponse.json({ description, hiddenRemoved })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })
   }

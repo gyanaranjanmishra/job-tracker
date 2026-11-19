@@ -2,6 +2,8 @@ import fs from 'fs'
 import path from 'path'
 import { v4 as uuidv4 } from 'uuid'
 import { DEMO_MODE } from './demo'
+import { normaliseProfile, type FitProfile, type RubricResult } from './rubric'
+import type { GuardFinding } from './guard'
 
 // Real data lives in data/ (gitignored). Demo mode works on a scratch copy of
 // sample-data/ in .demo-data/ (also gitignored), so the committed samples stay clean.
@@ -80,6 +82,8 @@ export interface Job {
   regionId?: string
   roleId?: string
   checklist?: ChecklistItem[]
+  rubric?: RubricResult
+  postingFlags?: GuardFinding[]
 }
 
 export interface ResumeEntry {
@@ -421,6 +425,20 @@ export function readScraperConfig(personaId: string): ScraperConfig {
 
 export function writeScraperConfig(personaId: string, config: ScraperConfig): void {
   fs.writeFileSync(path.join(personaDir(personaId), 'scraper-config.json'), JSON.stringify(config, null, 2))
+}
+
+// ── Fit profile (rubric preferences) ──────────────────
+
+export function readProfile(personaId: string): FitProfile {
+  const file = path.join(personaDir(personaId), 'profile.json')
+  if (!fs.existsSync(file)) return normaliseProfile(undefined)
+  try { return normaliseProfile(JSON.parse(fs.readFileSync(file, 'utf-8'))) } catch { return normaliseProfile(undefined) }
+}
+
+export function writeProfile(personaId: string, profile: Partial<FitProfile>): FitProfile {
+  const p = normaliseProfile({ ...profile, updatedAt: new Date().toISOString() })
+  fs.writeFileSync(path.join(personaDir(personaId), 'profile.json'), JSON.stringify(p, null, 2))
+  return p
 }
 
 // ── Learning ──────────────────────────────────────────

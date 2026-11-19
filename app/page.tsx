@@ -1,6 +1,8 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import type { Job, JobStatus, ScraperConfig, CompanyEntry, ATSAnalysis, Persona, ResumeEntry, RegionConfig, RoleConfig, LearningEntry } from '@/lib/storage'
+import { DIMENSIONS, DIMENSION_LABELS, DEAL_BREAKER_CAP, needsTriage, type FitProfile, type RubricResult } from '@/lib/rubric'
+import type { GuardFinding } from '@/lib/guard'
 
 // ── Status config (light theme) ────────────────────────
 const STATUS_CONFIG: Record<JobStatus, { label: string; color: string; bg: string }> = {
@@ -193,6 +195,7 @@ export default function Home() {
   const [filterRoleId, setFilterRoleId] = useState('')
   const [demoMode, setDemoMode] = useState(false)
   const [dupCount, setDupCount] = useState(0)
+  const [profileUpdatedAt, setProfileUpdatedAt] = useState<string | undefined>()
 
   const fw = useCallback((url: string, init?: RequestInit) => {
     const headers = { ...(init?.headers || {}), 'x-persona-id': personaId, 'Content-Type': 'application/json' }
@@ -201,9 +204,10 @@ export default function Home() {
 
   const fetchJobs = useCallback(async () => {
     if (!personaId) return
-    const [res, dupRes] = await Promise.all([fw('/api/jobs'), fw('/api/jobs/dedup')])
+    const [res, dupRes, profRes] = await Promise.all([fw('/api/jobs'), fw('/api/jobs/dedup'), fw('/api/profile')])
     setJobs(await res.json())
     setDupCount((await dupRes.json()).duplicates || 0)
+    setProfileUpdatedAt((await profRes.json()).updatedAt)
   }, [personaId, fw])
 
   const mergeDuplicates = async () => {
@@ -267,18 +271,15 @@ export default function Home() {
   }
 
   const analyzeAll = async () => {
-    const unscored = jobs.filter(j => j.description && !j.fitScore)
+    const unscored = jobs.filter(j => needsTriage(j, profileUpdatedAt))
     if (!unscored.length) return
     setAnalyzing(true); setAnalyzeProgress(0); setAnalyzeTotal(unscored.length)
     for (let i = 0; i < unscored.length; i++) {
       const job = unscored[i]
       setAnalyzeProgress(i + 1)
       try {
-        const res = await fw('/api/analyze', { method: 'POST', body: JSON.stringify({ jobDescription: job.description, jobId: job.id }) })
-        const data = await res.json()
-        if (!data.error) {
-          await fw('/api/jobs', { method: 'PUT', body: JSON.stringify({ id: job.id, fitScore: data.fitScore, keywords: data.matchedKeywords }) })
-        }
+        // Stage 1: cheap rubric triage; the route saves the score and breakdown on the job
+        await fw('/api/analyze', { method: 'POST', body: JSON.stringify({ mode: 'triage', jobId: job.id }) })
       } catch { /* skip */ }
     }
     setAnalyzing(false); fetchJobs()
@@ -293,16 +294,14 @@ export default function Home() {
       const job = candidates[i]
       setTopKProgress(i + 1)
       try {
-        const res = await fw('/api/analyze', { method: 'POST', body: JSON.stringify({ jobDescription: job.description, jobId: job.id }) })
-        const data = await res.json()
-        if (!data.error) {
-          const atsAnalysis: ATSAnalysis = { summary: data.summary, matchedKeywords: data.matchedKeywords, missingKeywords: data.missingKeywords, improvedSummary: data.improvedSummary, suggestions: data.suggestions, analyzedAt: new Date().toISOString() }
-          await fw('/api/jobs', { method: 'PUT', body: JSON.stringify({ id: job.id, fitScore: data.fitScore, keywords: data.matchedKeywords, atsAnalysis }) })
-        }
+        // Stage 2: deep analysis on the shortlist; the route saves everything on the job
+        await fw('/api/analyze', { method: 'POST', body: JSON.stringify({ mode: 'deep', jobId: job.id }) })
       } catch { /* skip */ }
     }
     setAnalyzingTopK(false); fetchJobs()
   }
+
+  const triageCount = jobs.filter(j => needsTriage(j, profileUpdatedAt)).length
 
   const stats = {
     total: jobs.length, applied: jobs.filter(j => j.status === 'applied').length,
@@ -424,8 +423,8 @@ export default function Home() {
                     }}>{s === 'date' ? 'DATE' : 'SCORE'}</button>
                   ))}
                 </div>
-                <button onClick={analyzeAll} disabled={analyzing || !jobs.filter(j => j.description && !j.fitScore).length} style={{ ...ghostBtn, color: 'var(--accent2)', borderColor: 'var(--accent2)', opacity: analyzing || !jobs.filter(j => j.description && !j.fitScore).length ? 0.5 : 1 }}>
-                  {analyzing ? `Analyzing ${analyzeProgress}/${analyzeTotal}…` : `🎯 Analyze All (${jobs.filter(j => j.description && !j.fitScore).length})`}
+                <button onClick={analyzeAll} disabled={analyzing || !triageCount} title="Rubric-score jobs that are unscored, scored the old way, or scored before your preferences changed" style={{ ...ghostBtn, color: 'var(--accent2)', borderColor: 'var(--accent2)', opacity: analyzing || !triageCount ? 0.5 : 1 }}>
+                  {analyzing ? `Triaging ${analyzeProgress}/${analyzeTotal}…` : `🎯 Triage All (${triageCount})`}
                 </button>
                 {dupCount > 0 && (
                   <button onClick={mergeDuplicates} title="Same company and title, or same link" style={{ ...ghostBtn, color: 'var(--danger)', borderColor: 'var(--danger)' }}>
@@ -475,7 +474,7 @@ export default function Home() {
         {tab === 'dashboard' && <DashboardTab jobs={jobs} regions={regions} roles={roles} />}
         {tab === 'analyze' && <ATSAnalyzer fw={fw} personaId={personaId} regions={regions} roles={roles} />}
         {tab === 'coverletter' && <CoverLetterGenerator fw={fw} jobs={jobs} personaId={personaId} regions={regions} roles={roles} />}
-        {tab === 'resume' && <ResumeTab fw={fw} personaId={personaId} regions={regions} roles={roles} onRegionsRolesChange={fetchRegionsRoles} />}
+        {tab === 'resume' && <ResumeTab fw={fw} personaId={personaId} regions={regions} roles={roles} onRegionsRolesChange={fetchRegionsRoles} onProfileChange={setProfileUpdatedAt} />}
         {tab === 'learning' && <LearningTab fw={fw} roles={roles} />}
         {tab === 'sources' && <SourcesTab fw={fw} onJobsAdded={fetchJobs} checklistTemplate={checklistTemplate} onChecklistTemplateUpdate={tpl => { setChecklistTemplate(tpl); fetch('/api/personas', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ checklistTemplate: tpl }) }) }} onRegionsRolesChange={fetchRegionsRoles} />}
       </main>
@@ -652,6 +651,9 @@ function JobCard({ job, onStatusChange, onDelete, onDescriptionUpdate, onCheckli
           </div>
         </div>
 
+        {job.postingFlags?.some(f => f.severity === 'warning') && (
+          <span title={job.postingFlags.map(f => f.detail).join('\n')} style={{ fontSize: 11, fontFamily: 'DM Mono, monospace', padding: '4px 8px', borderRadius: 8, color: '#a06000', background: '#fff4e5', border: '1px solid #e0a04066', whiteSpace: 'nowrap' }}>⚠ POSTING</span>
+        )}
         {job.fitScore !== undefined ? (
           <ScoreBadge score={job.fitScore} />
         ) : !job.description?.trim() ? (
@@ -694,6 +696,17 @@ function JobCard({ job, onStatusChange, onDelete, onDescriptionUpdate, onCheckli
             {job.atsAnalysis && <button onClick={exportPDF} disabled={exporting} style={{ ...ghostBtn, color: '#7c6fe8', borderColor: '#7c6fe8', opacity: exporting ? 0.6 : 1 }}>{exporting ? 'Exporting…' : '↓ Export PDF'}</button>}
             {exportMsg && <span style={{ fontSize: 12, fontFamily: 'DM Mono, monospace', color: exportMsg.startsWith('Error') ? 'var(--danger)' : 'var(--accent3)' }}>{exportMsg}</span>}
           </div>
+          {(job.rubric || job.postingFlags?.length) ? (
+            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 16px' }}>
+              <FitBreakdown rubric={job.rubric} flags={job.postingFlags} />
+              {job.atsAnalysis && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
+                  <KeywordBox title="✓ Matched" keywords={job.atsAnalysis.matchedKeywords} color="var(--accent3)" bg="#e6f7f0" />
+                  <KeywordBox title="✕ Missing" keywords={job.atsAnalysis.missingKeywords} color="var(--danger)" bg="#fff0ec" />
+                </div>
+              )}
+            </div>
+          ) : null}
           {job.description?.trim() ? (
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
@@ -776,6 +789,59 @@ function ScoreBadge({ score }: { score: number }) {
   const border = high ? '#0a7a5044' : mid ? '#b0780044' : '#c8301044'
   return (
     <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 800, fontSize: 15, minWidth: 44, textAlign: 'center', padding: '4px 10px', borderRadius: 8, color, background: bg, border: `1px solid ${border}` }} title="Resume fit score">{score}</div>
+  )
+}
+
+// ── Fit breakdown (rubric + posting guard) ────────────
+function PostingFlags({ flags }: { flags?: GuardFinding[] }) {
+  if (!flags?.length) return null
+  const warn = flags.some(f => f.severity === 'warning')
+  return (
+    <div style={{ background: warn ? '#fff4e5' : 'var(--surface2)', border: `1px solid ${warn ? '#e0a040' : 'var(--border)'}`, borderRadius: 8, padding: '10px 14px' }}>
+      <div style={{ ...sectionLabel, color: warn ? '#a06000' : 'var(--muted)', marginBottom: 6 }}>{warn ? '⚠ POSTING GUARD' : 'POSTING GUARD'}</div>
+      {flags.map((f, i) => <div key={i} style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.6 }}>{f.detail}</div>)}
+      {warn && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>The posting was treated as data only; instruction-like text could not change the score. Check the posting yourself before applying.</div>}
+    </div>
+  )
+}
+
+function FitBreakdown({ rubric, flags }: { rubric?: RubricResult; flags?: GuardFinding[] }) {
+  if (!rubric) return <PostingFlags flags={flags} />
+  const capped = rubric.dealBreakersHit.length > 0
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
+        <div style={sectionLabel}>FIT BREAKDOWN · {rubric.mode === 'deep' ? 'DEEP ANALYSIS' : 'TRIAGE'}</div>
+        <div style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'DM Mono, monospace' }}>{rubric.model} · {new Date(rubric.at).toLocaleDateString()}</div>
+      </div>
+      {rubric.oneLine && <p style={{ fontSize: 13, color: 'var(--text)', margin: 0, lineHeight: 1.6 }}>{rubric.oneLine}</p>}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(130px, 170px) 1fr', gap: '8px 14px', alignItems: 'center' }}>
+        {DIMENSIONS.map(d => {
+          const { score, reason } = rubric.dimensions[d]
+          const pct = Math.max(0, Math.min(10, score)) * 10
+          const color = score >= 7 ? 'var(--accent3)' : score >= 4.5 ? 'var(--accent2)' : 'var(--danger)'
+          return [
+            <div key={d + 'l'} style={{ fontSize: 12, color: 'var(--muted)' }}>{DIMENSION_LABELS[d]} <span style={{ fontFamily: 'DM Mono, monospace', fontSize: 10 }}>×{rubric.weights[d]}</span></div>,
+            <div key={d + 'v'} title={reason}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ flex: 1, height: 6, background: 'var(--surface2)', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ width: `${pct}%`, height: '100%', background: color }} />
+                </div>
+                <span style={{ fontFamily: 'DM Mono, monospace', fontSize: 12, color, minWidth: 28, textAlign: 'right' }}>{score}/10</span>
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2, lineHeight: 1.4 }}>{reason}</div>
+            </div>,
+          ]
+        })}
+      </div>
+      {capped && (
+        <div style={{ background: '#fff0ec', border: '1px solid #c8301044', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: 'var(--danger)' }}>
+          Deal-breaker{rubric.dealBreakersHit.length > 1 ? 's' : ''} hit, so the score is capped at {DEAL_BREAKER_CAP}:
+          {rubric.dealBreakersHit.map((h, i) => <div key={i} style={{ marginTop: 4 }}>• <b>{h.dealBreaker}</b>: “{h.evidence}”</div>)}
+        </div>
+      )}
+      <PostingFlags flags={flags} />
+    </div>
   )
 }
 
@@ -901,7 +967,7 @@ function ATSAnalyzer({ fw, personaId, regions, roles }: { fw: Function; personaI
     if (!jd.trim()) return
     setLoading(true); setError(''); setResult(null)
     try {
-      const res = await fw('/api/analyze', { method: 'POST', body: JSON.stringify({ jobDescription: jd, resumeId: selectedResumeId || undefined, regionId: selectedRegionId || undefined, roleId: selectedRoleId || undefined }) })
+      const res = await fw('/api/analyze', { method: 'POST', body: JSON.stringify({ mode: 'deep', jobDescription: jd, title: jobTitle || undefined, company: company || undefined, resumeId: selectedResumeId || undefined, regionId: selectedRegionId || undefined, roleId: selectedRoleId || undefined }) })
       const data = await res.json()
       if (data.error) setError(data.error)
       else setResult(data)
@@ -989,6 +1055,9 @@ function ATSAnalyzer({ fw, personaId, regions, roles }: { fw: Function; personaI
               <p style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--text)' }}>{result.summary}</p>
             </div>
           </div>
+          {(result.rubric || result.postingFlags?.length > 0) && (
+            <div style={card}><FitBreakdown rubric={result.rubric} flags={result.postingFlags} /></div>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <KeywordBox title="✓ Matched" keywords={result.matchedKeywords} color="var(--accent3)" bg="#e6f7f0" />
             <KeywordBox title="✕ Missing" keywords={result.missingKeywords} color="var(--danger)" bg="#fff0ec" />
@@ -1038,6 +1107,8 @@ function CoverLetterGenerator({ fw, jobs, personaId, regions, roles }: { fw: Fun
   const [jd, setJd] = useState('')
   const [tone, setTone] = useState('professional but personable')
   const [result, setResult] = useState('')
+  const [review, setReview] = useState<any>(null)
+  const [showDraft, setShowDraft] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [selectedJobId, setSelectedJobId] = useState('')
@@ -1064,12 +1135,12 @@ function CoverLetterGenerator({ fw, jobs, personaId, regions, roles }: { fw: Fun
   }
 
   const generate = async () => {
-    setLoading(true); setError(''); setResult('')
+    setLoading(true); setError(''); setResult(''); setReview(null); setShowDraft(false)
     try {
       const res = await fw('/api/coverletter', { method: 'POST', body: JSON.stringify({ jobTitle, company, jobDescription: jd, tone, resumeId: selectedResumeId || undefined, roleId: selectedRoleId || undefined }) })
       const data = await res.json()
       if (data.error) setError(data.error)
-      else setResult(data.coverLetter)
+      else { setResult(data.coverLetter); setReview(data) }
     } catch { setError('Generation failed.') }
     setLoading(false)
   }
@@ -1120,7 +1191,7 @@ function CoverLetterGenerator({ fw, jobs, personaId, regions, roles }: { fw: Fun
       <label style={labelStyle}>Job Description</label>
       <textarea value={jd} onChange={e => setJd(e.target.value)} rows={6} placeholder="Paste job description..." style={{ ...inputStyle, resize: 'vertical', marginBottom: 12 }} />
 
-      <button onClick={generate} disabled={loading || !jobTitle || !company} style={{ ...primaryBtn, opacity: loading || !jobTitle || !company ? 0.5 : 1 }}>{loading ? 'Writing…' : '✉️ Generate Cover Letter'}</button>
+      <button onClick={generate} disabled={loading || !jobTitle || !company} style={{ ...primaryBtn, opacity: loading || !jobTitle || !company ? 0.5 : 1 }}>{loading ? 'Drafting and reviewing…' : '✉️ Generate Cover Letter'}</button>
       {error && <div style={{ marginTop: 16, color: 'var(--danger)', fontSize: 14 }}>{error}</div>}
 
       {result && (
@@ -1132,12 +1203,56 @@ function CoverLetterGenerator({ fw, jobs, personaId, regions, roles }: { fw: Fun
           <p style={{ fontSize: 14, lineHeight: 1.9, color: 'var(--text)', whiteSpace: 'pre-wrap' }}>{result}</p>
         </div>
       )}
+
+      {result && review && <LetterReview review={review} showDraft={showDraft} setShowDraft={setShowDraft} />}
+    </div>
+  )
+}
+
+function LetterReview({ review, showDraft, setShowDraft }: { review: any; showDraft: boolean; setShowDraft: (v: boolean) => void }) {
+  const issues: any[] = review.issues || []
+  const remaining: any[] = review.remainingIssues || []
+  const issueRow = (it: any, i: number) => (
+    <div key={i} style={{ fontSize: 12, lineHeight: 1.6, padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+      <span style={{ fontFamily: 'DM Mono, monospace', fontSize: 10, color: it.source === 'lint' ? 'var(--accent2)' : 'var(--accent)', marginRight: 8 }}>{(it.source || '').toUpperCase()} · {it.kind}</span>
+      {it.quote && <span style={{ color: 'var(--muted)', fontStyle: 'italic' }}>“{it.quote}” </span>}
+      <span style={{ color: 'var(--text)' }}>→ {it.fix}</span>
+    </div>
+  )
+  return (
+    <div style={{ marginTop: 16, ...card, display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <div style={sectionLabel}>REVIEW PASS</div>
+        {review.model && <div style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'DM Mono, monospace' }}>{review.model}</div>}
+      </div>
+      <div style={{ fontSize: 13, color: 'var(--text)' }}>
+        {review.revised
+          ? `A reviewer found ${issues.length} issue${issues.length === 1 ? '' : 's'} in the first draft, and the letter above is the revised version.`
+          : issues.length
+            ? <span style={{ color: 'var(--danger)' }}>{issues.length} issue{issues.length === 1 ? '' : 's'} flagged and no revision pass ran; check before sending.</span>
+            : 'The reviewer passed the first draft with no changes.'}
+        {review.revised && remaining.length > 0 && <span style={{ color: 'var(--danger)' }}> {remaining.length} issue{remaining.length === 1 ? '' : 's'} still flagged after revision; check before sending.</span>}
+      </div>
+      {issues.length > 0 && <div>{issues.map(issueRow)}</div>}
+      {review.revised && remaining.length > 0 && (
+        <div>
+          <div style={{ ...sectionLabel, color: 'var(--danger)', marginBottom: 4 }}>STILL FLAGGED</div>
+          {remaining.map(issueRow)}
+        </div>
+      )}
+      <PostingFlags flags={review.postingFlags} />
+      {review.revised && review.firstDraft && (
+        <div>
+          <button onClick={() => setShowDraft(!showDraft)} style={{ ...ghostBtn, fontSize: 12 }}>{showDraft ? 'Hide first draft' : 'Show first draft'}</button>
+          {showDraft && <p style={{ fontSize: 13, lineHeight: 1.8, color: 'var(--muted)', whiteSpace: 'pre-wrap', marginTop: 10 }}>{review.firstDraft}</p>}
+        </div>
+      )}
     </div>
   )
 }
 
 // ── Resume Tab ────────────────────────────────────────
-function ResumeTab({ fw, personaId, regions, roles, onRegionsRolesChange }: { fw: Function; personaId: string; regions: RegionConfig[]; roles: RoleConfig[]; onRegionsRolesChange: () => void }) {
+function ResumeTab({ fw, personaId, regions, roles, onRegionsRolesChange, onProfileChange }: { fw: Function; personaId: string; regions: RegionConfig[]; roles: RoleConfig[]; onRegionsRolesChange: () => void; onProfileChange?: (updatedAt?: string) => void }) {
   const [resumes, setResumes] = useState<ResumeEntry[]>([])
   const [editing, setEditing] = useState<ResumeEntry | null>(null)
   const [showAdd, setShowAdd] = useState(false)
@@ -1251,6 +1366,78 @@ function ResumeTab({ fw, personaId, regions, roles, onRegionsRolesChange }: { fw
           ))}
         </div>
       )}
+
+      <FitPreferences fw={fw} personaId={personaId} onSaved={onProfileChange} />
+    </div>
+  )
+}
+
+// ── Fit preferences (rubric config) ───────────────────
+function FitPreferences({ fw, personaId, onSaved }: { fw: Function; personaId: string; onSaved?: (updatedAt?: string) => void }) {
+  const [profile, setProfile] = useState<FitProfile | null>(null)
+  const [locations, setLocations] = useState('')
+  const [dealBreakers, setDealBreakers] = useState('')
+  const [status, setStatus] = useState('')
+
+  useEffect(() => {
+    fw('/api/profile').then((r: Response) => r.json()).then((p: FitProfile) => {
+      setProfile(p)
+      setLocations(p.preferredLocations.join(', '))
+      setDealBreakers(p.dealBreakers.join('\n'))
+    })
+  }, [personaId])
+
+  if (!profile) return null
+  const weightSum = DIMENSIONS.reduce((s, d) => s + (Number(profile.weights[d]) || 0), 0)
+
+  const save = async () => {
+    const body: FitProfile = {
+      ...profile,
+      preferredLocations: locations.split(',').map(s => s.trim()).filter(Boolean),
+      dealBreakers: dealBreakers.split('\n').map(s => s.trim()).filter(Boolean),
+    }
+    const res = await fw('/api/profile', { method: 'PUT', body: JSON.stringify(body) })
+    if (!res.ok) { setStatus('Save failed'); return }
+    const saved: FitProfile = await res.json()
+    setProfile(saved)
+    setStatus('✓ Saved. Jobs scored earlier will be re-triaged.')
+    onSaved?.(saved.updatedAt)
+    setTimeout(() => setStatus(''), 4000)
+  }
+
+  return (
+    <div style={{ ...card, marginTop: 28 }}>
+      <h3 style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--text)', marginBottom: 4 }}>Fit preferences</h3>
+      <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 16 }}>
+        The fit score is a weighted average of five rubric dimensions rated by Claude. A deal-breaker found in a posting caps the score at {DEAL_BREAKER_CAP}. Changing these marks existing scores for re-triage.
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+        <Field label="Target seniority" value={profile.targetSeniority} onChange={v => setProfile({ ...profile, targetSeniority: v })} placeholder="Senior individual contributor" />
+        <Field label="Preferred locations / work modes (comma separated)" value={locations} onChange={setLocations} placeholder="Remote, Toronto, Hybrid in London" />
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+        <div>
+          <label style={labelStyle}>Deal-breakers (one per line)</label>
+          <textarea value={dealBreakers} onChange={e => setDealBreakers(e.target.value)} rows={4} placeholder={'Requires security clearance\nFully on-site'} style={{ ...inputStyle, resize: 'vertical' }} />
+        </div>
+        <div>
+          <label style={labelStyle}>Career priorities</label>
+          <textarea value={profile.priorities} onChange={e => setProfile({ ...profile, priorities: e.target.value })} rows={4} placeholder="Applied ML, product impact, mentoring" style={{ ...inputStyle, resize: 'vertical' }} />
+        </div>
+      </div>
+      <label style={labelStyle}>Weights {weightSum !== 100 && <span style={{ color: 'var(--muted)' }}>(sum {weightSum}; they are normalised)</span>}</label>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 14 }}>
+        {DIMENSIONS.map(d => (
+          <div key={d}>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>{DIMENSION_LABELS[d]}</div>
+            <input type="number" min={0} max={100} value={profile.weights[d]} onChange={e => setProfile({ ...profile, weights: { ...profile.weights, [d]: Number(e.target.value) } })} style={inputStyle} />
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+        <button onClick={save} style={primaryBtn}>Save preferences</button>
+        {status && <span style={{ fontSize: 13, color: 'var(--accent3)' }}>{status}</span>}
+      </div>
     </div>
   )
 }

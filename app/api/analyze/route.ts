@@ -1,120 +1,68 @@
 import { NextRequest, NextResponse } from 'next/server'
-import Anthropic from '@anthropic-ai/sdk'
-import { getBestResume, getDefaultPersonaId, updateLearningFromJob, getJob } from '@/lib/storage'
-import { DEMO_MODE, mockAnalyze } from '@/lib/demo'
+import {
+  getBestResume, getDefaultPersonaId, readJobs, readProfile, readResumes, saveJob, updateLearningFromJob,
+} from '@/lib/storage'
+import { deepAnalyzeJob, triageJob, type DeepResult, type TriageResult } from '@/lib/analysis'
 
+// POST /api/analyze
+//   mode: 'triage' (rubric score only, cheap) | 'deep' (rubric + ATS review). Default 'deep'.
+//   jobId: optional; when given, the result is saved on that job.
 export async function POST(req: NextRequest) {
   const personaId = req.headers.get('x-persona-id') || getDefaultPersonaId()
-  const { jobDescription, resumeOverride, resumeId, regionId, roleId, jobId } = await req.json()
+  const body = await req.json()
+  const mode: 'triage' | 'deep' = body.mode === 'triage' ? 'triage' : 'deep'
 
-  // Resolve resume: explicit override > explicit resumeId > best match by region/role > first resume
-  let resumeText = resumeOverride || ''
-  if (!resumeText) {
-    const entry = resumeId
-      ? null // handled below
-      : getBestResume(personaId, regionId, roleId)
-    if (resumeId) {
-      const { readResumes } = await import('@/lib/storage')
-      const resumes = readResumes(personaId)
-      const r = resumes.find(r => r.id === resumeId)
-      resumeText = r?.text || ''
-    } else {
-      resumeText = entry?.text || ''
-    }
-  }
+  const job = body.jobId ? readJobs(personaId).find(j => j.id === body.jobId) : undefined
+  const jobDescription: string = body.jobDescription || job?.description || ''
+  const regionId = body.regionId || job?.regionId
+  const roleId = body.roleId || job?.roleId
+
+  // Resume: explicit override > explicit resumeId > best match by region/role > first resume
+  const resumeText: string =
+    body.resumeOverride ||
+    (body.resumeId ? readResumes(personaId).find(r => r.id === body.resumeId)?.text : '') ||
+    getBestResume(personaId, regionId, roleId)?.text ||
+    ''
 
   if (!resumeText) return NextResponse.json({ error: 'No resume found. Please add a resume in the Resume tab.' }, { status: 400 })
-  if (!jobDescription) return NextResponse.json({ error: 'Job description is required.' }, { status: 400 })
+  if (!jobDescription.trim()) return NextResponse.json({ error: 'Job description is required.' }, { status: 400 })
 
-  const prompt = `You are an expert ATS resume optimizer.
-
-JOB DESCRIPTION:
-${jobDescription}
-
-CANDIDATE RESUME:
-${resumeText}
-
-Return ONLY a valid JSON object with exactly these fields, no markdown, no backticks, no explanation:
-{
-  "fitScore": <number 0-100>,
-  "matchedKeywords": ["keyword1", "keyword2"],
-  "missingKeywords": ["keyword1", "keyword2"],
-  "summary": "<2-3 sentence assessment>",
-  "improvedSummary": "<rewritten professional summary>",
-  "suggestions": [
-    { "section": "<name>", "original": "<original or empty>", "improved": "<improved version>" }
-  ]
-}
-
-IMPORTANT: Use only plain ASCII double quotes. No special characters in keys. Valid JSON only.`
+  const input = {
+    jobDescription,
+    resumeText,
+    profile: readProfile(personaId),
+    title: body.title || job?.title,
+    company: body.company || job?.company,
+    location: job?.location,
+  }
 
   try {
-    let raw: string
-    if (DEMO_MODE) {
-      raw = JSON.stringify(mockAnalyze(jobDescription, resumeText))
-    } else {
-      const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-      const message = await client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 2500,
-        messages: [{ role: 'user', content: prompt }],
-      })
-      raw = message.content[0].type === 'text' ? message.content[0].text : ''
-    }
-    let cleaned = raw.replace(/```json/g, '').replace(/```/g, '').trim()
-    // Strip control characters that break JSON parsing
-    cleaned = cleaned.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, ' ')
-    const start = cleaned.indexOf('{')
-    const end = cleaned.lastIndexOf('}')
-    if (start === -1 || end === -1) throw new Error('No JSON found in response')
+    const deep: DeepResult | null = mode === 'deep' ? await deepAnalyzeJob(input) : null
+    const result: TriageResult = deep ?? await triageJob(input)
 
-    let jsonStr = cleaned.slice(start, end + 1)
-    let result: any
-    try {
-      result = JSON.parse(jsonStr)
-    } catch {
-      // Response was truncated mid-array — drop the last incomplete element and close the object
-      const lastComma = jsonStr.lastIndexOf(',')
-      if (lastComma !== -1) {
-        jsonStr = jsonStr.slice(0, lastComma) + '}'
-        result = JSON.parse(jsonStr)
-      } else {
-        throw new Error('Unparseable JSON from model: ' + (raw.slice(0, 200)))
-      }
-    }
-
-    // Ensure all required fields always exist with safe defaults
-    result.fitScore = typeof result.fitScore === 'number' ? result.fitScore : 0
-    result.matchedKeywords = Array.isArray(result.matchedKeywords) ? result.matchedKeywords : []
-    result.missingKeywords = Array.isArray(result.missingKeywords) ? result.missingKeywords : []
-    result.summary = result.summary || ''
-    result.improvedSummary = result.improvedSummary || ''
-    result.suggestions = Array.isArray(result.suggestions) ? result.suggestions : []
-
-    // Update learning data if we have a jobId
-    if (jobId) {
-      const { saveJob, readJobs } = await import('@/lib/storage')
-      const jobs = readJobs(personaId)
-      const job = jobs.find(j => j.id === jobId)
-      if (job) {
+    if (job) {
+      job.fitScore = result.fitScore
+      job.rubric = result.rubric
+      job.postingFlags = result.postingFlags
+      if (deep) {
+        job.keywords = deep.matchedKeywords
         job.atsAnalysis = {
-          summary: result.summary,
-          matchedKeywords: result.matchedKeywords,
-          missingKeywords: result.missingKeywords,
-          improvedSummary: result.improvedSummary,
-          suggestions: result.suggestions,
+          summary: deep.summary,
+          matchedKeywords: deep.matchedKeywords,
+          missingKeywords: deep.missingKeywords,
+          improvedSummary: deep.improvedSummary,
+          suggestions: deep.suggestions,
           analyzedAt: new Date().toISOString(),
         }
-        job.fitScore = result.fitScore
-        job.keywords = result.matchedKeywords
-        saveJob(personaId, job)
-        updateLearningFromJob(personaId, job)
       }
+      job.updatedAt = new Date().toISOString()
+      saveJob(personaId, job)
+      if (job.atsAnalysis) updateLearningFromJob(personaId, job)
     }
 
-    return NextResponse.json(result)
+    return NextResponse.json({ mode, ...result })
   } catch (err: any) {
-    console.error('Analysis error:', err.message)
-    return NextResponse.json({ error: 'Analysis failed: ' + err.message }, { status: 500 })
+    console.error(`Analysis (${mode}) error:`, err.message)
+    return NextResponse.json({ error: 'Analysis failed: ' + err.message }, { status: 502 })
   }
 }

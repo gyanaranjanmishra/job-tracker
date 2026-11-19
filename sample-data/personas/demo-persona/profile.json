@@ -1,0 +1,7 @@
+{
+  "targetSeniority": "Mid-level to senior individual contributor",
+  "preferredLocations": ["Toronto", "Remote"],
+  "dealBreakers": ["security clearance", "relocation required"],
+  "priorities": "Applied machine learning, experimentation, product impact",
+  "weights": { "skills": 35, "experience": 25, "seniority": 15, "location": 15, "goals": 10 }
+}

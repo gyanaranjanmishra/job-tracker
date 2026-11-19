@@ -6,6 +6,8 @@
 //   - ATS analysis and cover letters are produced locally by the functions below
 //     instead of calling Claude, so results are illustrative, not real model output
 
+import type { DeepAnalysisOutput, FitProfile, RubricOutput } from './rubric'
+
 export const DEMO_MODE = process.env.DEMO_MODE === 'true' || !process.env.ANTHROPIC_API_KEY
 
 // Skills the mock analyzer looks for. Matching is case-insensitive on word boundaries.
@@ -70,6 +72,80 @@ export function mockAnalyze(jobDescription: string, resumeText: string): MockAna
   }
 }
 
+// ── Rubric mock ───────────────────────────────────────
+
+const LEVELS: Array<[RegExp, string]> = [
+  [/\b(intern|internship|co-?op|student)\b/i, 'intern'],
+  [/\b(junior|jr\.?|entry[- ]level|graduate|associate)\b/i, 'junior'],
+  [/\b(principal|staff|director|head of|vp)\b/i, 'principal'],
+  [/\b(lead|manager)\b/i, 'lead'],
+  [/\b(senior|sr\.?)\b/i, 'senior'],
+]
+const levelOf = (s: string) => LEVELS.find(([re]) => re.test(s))?.[1]
+
+const dim = (score: number, reason: string) => ({ score: Math.max(0, Math.min(10, Math.round(score))), reason })
+
+export function mockRubric(jobDescription: string, resumeText: string, profile: FitProfile, title = '', jobLocation = ''): RubricOutput {
+  const jd = `${title}\n${jobLocation}\n${jobDescription}`
+  const { matchedKeywords, missingKeywords } = mockAnalyze(jobDescription, resumeText)
+  const required = matchedKeywords.length + missingKeywords.length
+  const coverage = required ? matchedKeywords.length / required : 0.5
+
+  const jobLevel = levelOf(title) || levelOf(jobDescription.slice(0, 400))
+  const wanted = profile.targetSeniority.toLowerCase()
+  const seniority = !jobLevel
+    ? dim(6, 'Level not stated; assumed mid-level.')
+    : wanted.includes(jobLevel) || (jobLevel === 'senior' && /senior/.test(wanted))
+      ? dim(9, `Posting is ${jobLevel}-level, matching your target.`)
+      : dim(3, `Posting is ${jobLevel}-level; your target is "${profile.targetSeniority}".`)
+
+  const prefs = profile.preferredLocations.map(p => p.toLowerCase())
+  const jdLower = jd.toLowerCase()
+  const hitLoc = prefs.find(p => p && jdLower.includes(p.replace(/\(.*\)/, '').trim()))
+  const location = !prefs.length
+    ? dim(5, 'No location preference set.')
+    : hitLoc
+      ? dim(9, `Matches your preference "${hitLoc}".`)
+      : jobLocation.trim() || /remote|hybrid|on-?site|office|[A-Z][a-z]+, [A-Z][A-Za-z]+/.test(jd)
+        ? dim(3, 'Location does not match your preferences.')
+        : dim(5, 'Location not stated.')
+
+  const priorityWords = profile.priorities.toLowerCase().split(/[^a-z0-9+#]+/).filter(w => w.length > 3)
+  const goalHits = priorityWords.filter(w => jdLower.includes(w))
+  const goals = !priorityWords.length
+    ? dim(5, 'No career priorities set.')
+    : dim(3 + (goalHits.length / priorityWords.length) * 6, goalHits.length ? `Mentions ${goalHits.slice(0, 3).join(', ')}.` : 'None of your priorities are mentioned.')
+
+  const dealBreakersHit = profile.dealBreakers
+    .filter(d => d && jdLower.includes(d.toLowerCase()))
+    .map(d => ({ dealBreaker: d, evidence: d }))
+
+  return {
+    dimensions: {
+      skills: dim(coverage * 10, `${matchedKeywords.length} of ${required} detected skills are on the resume.`),
+      experience: dim(4 + coverage * 5, 'Estimated from skill overlap (demo mode).'),
+      seniority,
+      location,
+      goals,
+    },
+    dealBreakersHit,
+    oneLine: `[Demo] ${coverage >= 0.7 ? 'Strong' : coverage >= 0.4 ? 'Partial' : 'Weak'} skills overlap${dealBreakersHit.length ? '; a deal-breaker is triggered' : ''}.`,
+  }
+}
+
+export function mockDeep(jobDescription: string, resumeText: string, profile: FitProfile, title = '', jobLocation = ''): DeepAnalysisOutput {
+  const rubric = mockRubric(jobDescription, resumeText, profile, title, jobLocation)
+  const a = mockAnalyze(jobDescription, resumeText)
+  return {
+    ...rubric,
+    matchedKeywords: a.matchedKeywords,
+    missingKeywords: a.missingKeywords,
+    summary: a.summary,
+    improvedSummary: a.improvedSummary,
+    suggestions: a.suggestions,
+  }
+}
+
 export function mockCoverLetter(jobTitle: string, company: string, jobDescription: string, resumeText: string): string {
   const { matchedKeywords } = mockAnalyze(jobDescription, resumeText)
   const skills = matchedKeywords.slice(0, 3).join(', ') || 'data analysis'
@@ -80,6 +156,6 @@ export function mockCoverLetter(jobTitle: string, company: string, jobDescriptio
     `In my recent roles I have used ${skills} to answer real business questions end to end, from framing the problem and preparing the data to communicating results to stakeholders who act on them.`,
     `I would be glad to discuss how I could contribute to ${org}. Thank you for your time and consideration.`,
     '',
-    '[Demo cover letter generated from a template. Add an API key to generate a tailored letter with Claude.]',
+    'Demo mode: this letter comes from a template. Add an API key to have Claude draft it and a second pass review it.',
   ].join('\n\n')
 }
